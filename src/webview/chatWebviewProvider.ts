@@ -834,6 +834,10 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
             gap: 5px;
           }
 
+          .quick-replies-row {
+            margin-top: 6px;
+          }
+
           .message-input {
             flex: 1;
             padding: 8px;
@@ -858,7 +862,7 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
             border-radius: 3px;
             font-family: inherit;
             font-size: inherit;
-            min-width: 150px;
+            width: 100%;
             cursor: pointer;
           }
 
@@ -963,11 +967,13 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
         <div class="input-area">
           <div class="input-container">
             <textarea class="message-input" id="messageInput" placeholder="Type your response..." rows="1"></textarea>
+            <button class="send-button" id="sendButton" onclick="sendMessage()" ${hasPendingResponse ? '' : 'disabled'}>Send</button>
+          </div>
+          <div class="quick-replies-row">
             <select class="quick-replies" id="quickReplies" onchange="selectQuickReply()" ${hasPendingResponse ? '' : 'disabled'}>
               <option value="">Quick Replies...</option>
               ${quickReplyOptionsHtml}
             </select>
-            <button class="send-button" id="sendButton" onclick="sendMessage()" ${hasPendingResponse ? '' : 'disabled'}>Send</button>
           </div>
         </div>
 
@@ -1144,8 +1150,10 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
               
               vscode.postMessage(messageData);
               
-              // Clear input, remove images, and disable send button
+              // Clear input, reset height, remove images, and disable send button
               input.value = '';
+              input.style.height = 'auto';
+              input.style.height = '36px';
               imagePreviews.forEach(preview => preview.remove());
               sendButton.disabled = true;
               

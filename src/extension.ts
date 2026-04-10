@@ -205,7 +205,7 @@ async function notifyUpdate(latestVersion: string, context: vscode.ExtensionCont
 		'Later'
 	).then(selection => {
 		if (selection === 'Update Now') {
-			performUpdate(latestVersion);
+			performUpdate();
 		}
 	});
 }
@@ -213,7 +213,7 @@ async function notifyUpdate(latestVersion: string, context: vscode.ExtensionCont
 /**
  * Perform the extension update
  */
-async function performUpdate(latestVersion: string) {
+async function performUpdate() {
 	try {
 		// Trigger VS Code's built-in extension update
 		await vscode.commands.executeCommand('workbench.extensions.installExtension', '3DTek-xyz.humanagent-mcp', {
@@ -570,10 +570,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	// Register extension update command
 	const updateExtensionCommand = vscode.commands.registerCommand('humanagent-mcp.updateExtension', async () => {
-		const latestVersion = updateStatusBarItem?.text.match(/v([\d.]+)/)?.[1];
-		if (latestVersion) {
-			await performUpdate(latestVersion);
-		}
+		await performUpdate();
 	});
 
 	// Register report issue command
