@@ -2,13 +2,27 @@
 
 Forces GitHub Copilot to chat with you before acting. Stops runaway agents, reduces wasted API calls, lets you manage multiple workspaces from one interface.
 
+## Project Status
+
+This project is unmaintained and is looking for a new maintainer.
+
+I still believe the problem it addresses is important: GitHub Copilot in VS Code can default to an overly autonomous "just do everything" style, and this project was built to add stronger human-in-the-loop control. In particular, the proxy/intercept behavior was intended to let you override that loose-cannon default and steer Copilot toward a more deliberate, check-in-first workflow.
+
+I no longer use VS Code or GitHub Copilot regularly, so I am not in a good position to maintain, validate, or support this extension going forward.
+
+If you find this approach valuable, please feel free to fork the project, open an issue, or take over maintenance.
+
 ## Installation
 
-1. Install from VS Code Marketplace - see 
+1. Install from a packaged `.vsix` bundle or build from source
 2. Copilot automatically gets the `HumanAgent_Chat` tool
 3. Done - no configuration needed
 4. Recommend selecting the "Create Override File" option from cog menu.
   This creates a "HumanAgentOverride.json" in a .vscode directory and adds some important customisations you will want to play with.   You can set some "reminder" text to be included with every ineraction - this alone is worth it.
+
+If the extension is no longer listed in the VS Code Marketplace, you can still use it by:
+- downloading a release `.vsix` and using `Extensions: Install from VSIX...`
+- building your own `.vsix` from source with `npx @vscode/vsce package`
 
 ## How to Use
 
@@ -156,4 +170,3 @@ See [README-Additional.md](README-Additional.md) for technical details
 
 ## Medium Article
 https://medium.com/@harperbenwilliam/stop-the-ai-chaos-why-human-in-the-loop-beats-fully-autonomous-coding-agents-eeb0ae17fde9
-

@@ -2,6 +2,14 @@
 
 VS Code extension that creates an MCP server for AI assistants to chat with humans.
 
+## Project Status
+
+This project is unmaintained and is looking for a new maintainer.
+
+The core problem still matters: giving users a way to rein in overly autonomous Copilot behavior and enforce a more deliberate human-in-the-loop workflow. I no longer use VS Code or GitHub Copilot regularly, so I am not actively maintaining or validating this extension.
+
+You can still install from a `.vsix`, build it from source, or fork it if it is useful to you.
+
 ## Demo
 
 ![HumanAgent MCP Extension Demo](high-res-demo.gif)
