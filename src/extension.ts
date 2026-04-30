@@ -21,7 +21,7 @@ let updateStatusBarItem: vscode.StatusBarItem | undefined;
 let chatWebviewProvider: ChatWebviewProvider;
 
 // MCP Server Definition Provider for VS Code native MCP integration
-class HumanAgentMcpProvider implements vscode.McpServerDefinitionProvider {
+class HITLMcpProvider implements vscode.McpServerDefinitionProvider {
     private _onDidChangeMcpServerDefinitions = new vscode.EventEmitter<void>();
     readonly onDidChangeMcpServerDefinitions = this._onDidChangeMcpServerDefinitions.event;
     private serverVersion: string = Date.now().toString();
@@ -32,21 +32,21 @@ class HumanAgentMcpProvider implements vscode.McpServerDefinitionProvider {
         // Use separate endpoint for MCP tools to avoid SSE conflicts with webview
         const serverUrl = `http://127.0.0.1:${this.port}/mcp-tools?sessionId=${this.sessionId}`;
         const serverUri = vscode.Uri.parse(serverUrl);
-        const server = new vscode.McpHttpServerDefinition('HumanAgentMCP', serverUri, {}, this.serverVersion);
-        console.log(`HumanAgent MCP: Using separate MCP tools endpoint to avoid SSE conflicts (version: ${this.serverVersion})`);
+        const server = new vscode.McpHttpServerDefinition('HITLMCP', serverUri, {}, this.serverVersion);
+        console.log(`HITL MCP: Using separate MCP tools endpoint to avoid SSE conflicts (version: ${this.serverVersion})`);
         return [server];
     }
 
     // Update version to force VS Code to refresh cached tool definitions
     updateServerVersion(): void {
         this.serverVersion = Date.now().toString();
-        console.log(`HumanAgent MCP: Updated server version to ${this.serverVersion} to force tool cache refresh`);
+        console.log(`HITL MCP: Updated server version to ${this.serverVersion} to force tool cache refresh`);
     }
 
     // Method to fire the change event when override files are reloaded
     notifyServerDefinitionsChanged(): void {
         this.updateServerVersion(); // Force VS Code to refresh cached tool definitions
-        console.log('HumanAgent MCP: Firing onDidChangeMcpServerDefinitions event');
+        console.log('HITL MCP: Firing onDidChangeMcpServerDefinitions event');
         this._onDidChangeMcpServerDefinitions.fire();
     }
 
@@ -57,7 +57,7 @@ class HumanAgentMcpProvider implements vscode.McpServerDefinitionProvider {
     }
 }
 
-let mcpProvider: HumanAgentMcpProvider;
+let mcpProvider: HITLMcpProvider;
 
 // Generate or retrieve persistent workspace session ID
 function getWorkspaceSessionId(context: vscode.ExtensionContext): string {
@@ -123,7 +123,7 @@ async function restoreSessionName(context: vscode.ExtensionContext, sessionId: s
  */
 async function checkForUpdates(): Promise<string | null> {
 	try {
-		const currentVersion = vscode.extensions.getExtension('3DTek-xyz.humanagent-mcp')?.packageJSON.version;
+		const currentVersion = vscode.extensions.getExtension('3DTek-xyz.hitl-mcp')?.packageJSON.version;
 		if (!currentVersion) {
 			console.log('[UpdateCheck] Could not determine current extension version');
 			return null;
@@ -141,7 +141,7 @@ async function checkForUpdates(): Promise<string | null> {
 			body: JSON.stringify({
 				filters: [{
 					criteria: [
-						{ filterType: 7, value: '3DTek-xyz.humanagent-mcp' }
+						{ filterType: 7, value: '3DTek-xyz.hitl-mcp' }
 					]
 				}],
 				flags: 914
@@ -189,8 +189,8 @@ async function notifyUpdate(latestVersion: string, context: vscode.ExtensionCont
 	// Create persistent status bar item FIRST (before dialog)
 	updateStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
 	updateStatusBarItem.text = `$(cloud-download) v${latestVersion}`;
-	updateStatusBarItem.tooltip = `HumanAgent MCP update available - Click to update to version ${latestVersion}`;
-	updateStatusBarItem.command = 'humanagent-mcp.updateExtension';
+	updateStatusBarItem.tooltip = `HITL MCP update available - Click to update to version ${latestVersion}`;
+	updateStatusBarItem.command = 'hitl-mcp.updateExtension';
 	updateStatusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
 	updateStatusBarItem.show();
 	
@@ -200,7 +200,7 @@ async function notifyUpdate(latestVersion: string, context: vscode.ExtensionCont
 	
 	// Show notification without await so status bar is immediately visible
 	vscode.window.showInformationMessage(
-		`HumanAgent MCP v${latestVersion} is available! You're currently on an older version.`,
+		`HITL MCP v${latestVersion} is available! You're currently on an older version.`,
 		'Update Now',
 		'Later'
 	).then(selection => {
@@ -216,7 +216,7 @@ async function notifyUpdate(latestVersion: string, context: vscode.ExtensionCont
 async function performUpdate() {
 	try {
 		// Trigger VS Code's built-in extension update
-		await vscode.commands.executeCommand('workbench.extensions.installExtension', '3DTek-xyz.humanagent-mcp', {
+		await vscode.commands.executeCommand('workbench.extensions.installExtension', '3DTek-xyz.hitl-mcp', {
 			installPreReleaseVersion: false
 		});
 		
@@ -227,7 +227,7 @@ async function performUpdate() {
 		}
 		
 		vscode.window.showInformationMessage(
-			'HumanAgent MCP is updating. You may need to reload VS Code after installation.',
+			'HITL MCP is updating. You may need to reload VS Code after installation.',
 			'Reload Now'
 		).then(choice => {
 			if (choice === 'Reload Now') {
@@ -254,13 +254,13 @@ async function verifyCertificateInstallation(): Promise<boolean> {
 			
 			if (process.platform === 'darwin') {
 				// macOS: Check if certificate exists in System.keychain
-				checkCommand = 'security find-certificate -c "HumanAgent Proxy CA" /Library/Keychains/System.keychain 2>&1';
+				checkCommand = 'security find-certificate -c "HITL Proxy CA" /Library/Keychains/System.keychain 2>&1';
 			} else if (process.platform === 'win32') {
 				// Windows: Check if certificate exists in Root store
-				checkCommand = 'certutil -verifystore Root "HumanAgent Proxy CA" 2>&1';
+				checkCommand = 'certutil -verifystore Root "HITL Proxy CA" 2>&1';
 			} else {
 				// Linux: Check NSS database
-				checkCommand = 'certutil -L -d sql:$HOME/.pki/nssdb 2>&1 | grep "HumanAgent Proxy CA"';
+				checkCommand = 'certutil -L -d sql:$HOME/.pki/nssdb 2>&1 | grep "HITL Proxy CA"';
 			}
 			
 			// Execute check command
@@ -274,7 +274,7 @@ async function verifyCertificateInstallation(): Promise<boolean> {
 				}
 				
 				// Check if certificate name appears in output
-				if (stdout.includes('HumanAgent Proxy CA')) {
+				if (stdout.includes('HITL Proxy CA')) {
 					console.log('[CertVerify] ✅ Certificate is installed in system keychain');
 					resolve(true);
 				} else {
@@ -290,7 +290,7 @@ async function verifyCertificateInstallation(): Promise<boolean> {
 }
 
 export async function activate(context: vscode.ExtensionContext) {
-	console.log('HumanAgent MCP extension activated!');
+	console.log('HITL MCP extension activated!');
 
 
 
@@ -306,15 +306,15 @@ export async function activate(context: vscode.ExtensionContext) {
 	mcpConfigManager = new McpConfigManager(workspaceRoot, context.extensionPath, SERVER_PORT);
 
 	// Initialize and register VS Code native MCP provider
-	mcpProvider = new HumanAgentMcpProvider(workspaceSessionId, SERVER_PORT);
-	context.subscriptions.push(vscode.lm.registerMcpServerDefinitionProvider('humanagent-mcp.server', mcpProvider));
-	console.log('HumanAgent MCP: Registered MCP server definition provider');
+	mcpProvider = new HITLMcpProvider(workspaceSessionId, SERVER_PORT);
+	context.subscriptions.push(vscode.lm.registerMcpServerDefinitionProvider('hitl-mcp.server', mcpProvider));
+	console.log('HITL MCP: Registered MCP server definition provider');
 
 	// Fire startup event if override file exists to refresh VS Code tools
 	if (workspaceRoot) {
-		const overrideFilePath = path.join(workspaceRoot, '.vscode', 'HumanAgentOverride.json');
+		const overrideFilePath = path.join(workspaceRoot, '.vscode', 'HITLOverride.json');
 		if (require('fs').existsSync(overrideFilePath)) {
-			console.log('HumanAgent MCP: Override file detected on startup, firing onDidChangeMcpServerDefinitions');
+			console.log('HITL MCP: Override file detected on startup, firing onDidChangeMcpServerDefinitions');
 			mcpProvider.notifyServerDefinitionsChanged();
 		}
 	}
@@ -323,7 +323,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	const serverPath = path.join(context.extensionPath, 'dist', 'mcpStandalone.js');
 	
 	// Check if logging is enabled via user settings
-	const config = vscode.workspace.getConfiguration('humanagent-mcp');
+	const config = vscode.workspace.getConfiguration('hitl-mcp');
 	const loggingEnabled = config.get<boolean>('logging.enabled', false);
 	const loggingLevel = config.get<string>('logging.level', 'INFO');
 	
@@ -341,11 +341,11 @@ export async function activate(context: vscode.ExtensionContext) {
 	
 	// Only add logFile if logging is enabled
 	if (loggingEnabled && vscode.workspace.workspaceFolders?.[0]) {
-		serverOptions.logFile = path.join(vscode.workspace.workspaceFolders[0].uri.fsPath, '.vscode', 'HumanAgent-server.log');
-		console.log('HumanAgent MCP: Logging enabled to .vscode directory');
+		serverOptions.logFile = path.join(vscode.workspace.workspaceFolders[0].uri.fsPath, '.vscode', 'HITL-server.log');
+		console.log('HITL MCP: Logging enabled to .vscode directory');
 	}
 	
-	console.log(`HumanAgent MCP: Certificate storage path: ${certStoragePath}`);
+	console.log(`HITL MCP: Certificate storage path: ${certStoragePath}`);
 	
 	serverManager = ServerManager.getInstance(serverOptions);
 
@@ -367,12 +367,12 @@ export async function activate(context: vscode.ExtensionContext) {
 	});
 
 	// Show startup notification
-	const notificationConfig = vscode.workspace.getConfiguration('humanagent-mcp');
+	const notificationConfig = vscode.workspace.getConfiguration('hitl-mcp');
 	const showStartupNotification = notificationConfig.get<boolean>('notifications.showStartup', true);
 	
 	if (showStartupNotification) {
 		vscode.window.showInformationMessage(
-			'HumanAgent MCP Extension is a new tool - please report any issues or suggestions on GitHub!',
+			'HITL MCP Extension is a new tool - please report any issues or suggestions on GitHub!',
 			'Open Chat',
 			'Show Status',
 			'Report Issues'
@@ -380,13 +380,13 @@ export async function activate(context: vscode.ExtensionContext) {
 		).then(selection => {
 			switch (selection) {
 				case 'Open Chat':
-					vscode.commands.executeCommand('humanagent-mcp.chatView.focus');
+					vscode.commands.executeCommand('hitl-mcp.chatView.focus');
 					break;
 				case 'Show Status':
-					vscode.commands.executeCommand('humanagent-mcp.showStatus');
+					vscode.commands.executeCommand('hitl-mcp.showStatus');
 					break;
 				case 'Report Issues':
-					vscode.env.openExternal(vscode.Uri.parse('https://github.com/nix1/HumanAgent-MCP/issues'));
+					vscode.env.openExternal(vscode.Uri.parse('https://github.com/nix1/HITL-MCP/issues'));
 					break;
 				// case 'Don\'t Show Again':
 				// 	notificationConfig.update('notifications.showStartup', false, vscode.ConfigurationTarget.Global);
@@ -401,13 +401,13 @@ export async function activate(context: vscode.ExtensionContext) {
 		try {
 			await restoreSessionName(context, workspaceSessionId, SERVER_PORT);
 		} catch (error) {
-			console.log('HumanAgent MCP: Could not restore session name on startup (server may not be ready yet):', error);
+			console.log('HITL MCP: Could not restore session name on startup (server may not be ready yet):', error);
 		}
 	}, 1000); // Wait 1 second for server to fully start
 
 	// Initialize Tree View Provider
 	chatTreeProvider = new ChatTreeProvider();
-	const treeView = vscode.window.createTreeView('humanagent-mcp.chatSessions', {
+	const treeView = vscode.window.createTreeView('hitl-mcp.chatSessions', {
 		treeDataProvider: chatTreeProvider,
 		showCollapseAll: true
 	});
@@ -439,29 +439,29 @@ export async function activate(context: vscode.ExtensionContext) {
 	chatWebviewProvider.notifyRegistrationComplete();
 
 	// Register Commands
-	const openChatCommand = vscode.commands.registerCommand('humanagent-mcp.openChat', () => {
+	const openChatCommand = vscode.commands.registerCommand('hitl-mcp.openChat', () => {
 		// Focus the chat webview
-		vscode.commands.executeCommand('humanagent-mcp.chatView.focus');
+		vscode.commands.executeCommand('hitl-mcp.chatView.focus');
 	});
 
-	const createSessionCommand = vscode.commands.registerCommand('humanagent-mcp.createSession', async () => {
+	const createSessionCommand = vscode.commands.registerCommand('hitl-mcp.createSession', async () => {
 		// In sessionless mode, just open the chat view
-		vscode.commands.executeCommand('humanagent-mcp.chatView.focus');
-		vscode.window.showInformationMessage(`Chat interface ready for HumanAgent communication`);
+		vscode.commands.executeCommand('hitl-mcp.chatView.focus');
+		vscode.window.showInformationMessage(`Chat interface ready for HITL communication`);
 	});
 
-	const refreshSessionsCommand = vscode.commands.registerCommand('humanagent-mcp.refreshSessions', () => {
+	const refreshSessionsCommand = vscode.commands.registerCommand('hitl-mcp.refreshSessions', () => {
 		// In sessionless mode, just update the tree view
 		chatTreeProvider.refresh();
 	});
 
 	// Create dedicated status command
-	const showStatusCommand = vscode.commands.registerCommand('humanagent-mcp.showStatus', async () => {
+	const showStatusCommand = vscode.commands.registerCommand('hitl-mcp.showStatus', async () => {
 		// Get detailed server status
 		const serverStatus = await serverManager.getServerStatus();
 		
 		let statusMessage = 
-			`HumanAgent MCP Server Status:\n` +
+			`HITL MCP Server Status:\n` +
 			`- Running: ${serverStatus.isRunning ? '✅' : '❌'}\n` +
 			`- PID: ${serverStatus.pid || 'N/A'}\n` +
 			`- Port: ${serverStatus.port}\n` +
@@ -479,22 +479,22 @@ export async function activate(context: vscode.ExtensionContext) {
 	});
 
 	// Create server management commands
-	const startServerCommand = vscode.commands.registerCommand('humanagent-mcp.startServer', async () => {
+	const startServerCommand = vscode.commands.registerCommand('hitl-mcp.startServer', async () => {
 		try {
 			const success = await serverManager.ensureServerRunning();
 			if (success) {
-				vscode.window.showInformationMessage('HumanAgent MCP Server started successfully!');
+				vscode.window.showInformationMessage('HITL MCP Server started successfully!');
 				// Notify webview to reset reconnection backoff and try immediately
 				chatWebviewProvider.notifyServerStarted();
 			} else {
-				vscode.window.showErrorMessage('Failed to start HumanAgent MCP Server. Check the logs for details.');
+				vscode.window.showErrorMessage('Failed to start HITL MCP Server. Check the logs for details.');
 			}
 		} catch (error) {
 			vscode.window.showErrorMessage(`Failed to start server: ${error}`);
 		}
 	});
 
-	const stopServerCommand = vscode.commands.registerCommand('humanagent-mcp.stopServer', async () => {
+	const stopServerCommand = vscode.commands.registerCommand('hitl-mcp.stopServer', async () => {
 		try {
 			// First try HTTP shutdown endpoint (works from any VS Code window or client)
 			try {
@@ -527,13 +527,13 @@ export async function activate(context: vscode.ExtensionContext) {
 					req.end();
 				});
 
-				vscode.window.showInformationMessage('HumanAgent MCP Server stopped successfully!');
+				vscode.window.showInformationMessage('HITL MCP Server stopped successfully!');
 			} catch (httpError) {
 				// Fallback to PID kill if HTTP fails
 				console.log('HTTP shutdown failed, trying PID kill:', httpError);
 				const success = await serverManager.stopServer();
 				if (success) {
-					vscode.window.showInformationMessage('HumanAgent MCP Server stopped successfully!');
+					vscode.window.showInformationMessage('HITL MCP Server stopped successfully!');
 				} else {
 					vscode.window.showWarningMessage('Server may not have been running or failed to stop cleanly.');
 				}
@@ -543,7 +543,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
-	const restartServerCommand = vscode.commands.registerCommand('humanagent-mcp.restartServer', async () => {
+	const restartServerCommand = vscode.commands.registerCommand('hitl-mcp.restartServer', async () => {
 		try {
 			await serverManager.stopServer();
 			await new Promise(resolve => setTimeout(resolve, 1000)); // Brief pause
@@ -553,7 +553,7 @@ export async function activate(context: vscode.ExtensionContext) {
 				// Notify webview to reset reconnection backoff and try immediately
 				chatWebviewProvider.notifyServerStarted();
 			} else {
-				vscode.window.showErrorMessage('Failed to restart HumanAgent MCP Server. Check the logs for details.');
+				vscode.window.showErrorMessage('Failed to restart HITL MCP Server. Check the logs for details.');
 			}
 		} catch (error) {
 			vscode.window.showErrorMessage(`Failed to restart server: ${error}`);
@@ -563,17 +563,17 @@ export async function activate(context: vscode.ExtensionContext) {
 	// Configure MCP command removed - functionality moved to webview context menu
 
 	// Register extension update command
-	const updateExtensionCommand = vscode.commands.registerCommand('humanagent-mcp.updateExtension', async () => {
+	const updateExtensionCommand = vscode.commands.registerCommand('hitl-mcp.updateExtension', async () => {
 		await performUpdate();
 	});
 
 	// Register report issue command
-	const reportIssueCommand = vscode.commands.registerCommand('humanagent-mcp.reportIssue', () => {
-		vscode.env.openExternal(vscode.Uri.parse('https://github.com/nix1/HumanAgent-MCP/issues'));
+	const reportIssueCommand = vscode.commands.registerCommand('hitl-mcp.reportIssue', () => {
+		vscode.env.openExternal(vscode.Uri.parse('https://github.com/nix1/HITL-MCP/issues'));
 	});
 
 	// Register install proxy certificate command
-	const installProxyCertificateCommand = vscode.commands.registerCommand('humanagent-mcp.installProxyCertificate', async () => {
+	const installProxyCertificateCommand = vscode.commands.registerCommand('hitl-mcp.installProxyCertificate', async () => {
 		try {
 			// Get certificate path from globalStorage
 			const certStoragePath = context.globalStorageUri.fsPath;
@@ -587,7 +587,7 @@ export async function activate(context: vscode.ExtensionContext) {
 			
 			// Show information message explaining what will happen
 			const proceed = await vscode.window.showInformationMessage(
-				'This will install the HumanAgent Proxy CA certificate to your system keychain. This requires administrator privileges (sudo password).',
+				'This will install the HITL Proxy CA certificate to your system keychain. This requires administrator privileges (sudo password).',
 				{ modal: true },
 				'Install'
 			);
@@ -608,13 +608,13 @@ export async function activate(context: vscode.ExtensionContext) {
 				// Linux
 				vscode.window.showWarningMessage(
 					'Certificate installation on Linux varies by distribution. Please install manually:\n' +
-					`sudo cp "${certPath}" /usr/local/share/ca-certificates/humanagent-proxy-ca.crt && sudo update-ca-certificates`
+					`sudo cp "${certPath}" /usr/local/share/ca-certificates/hitl-proxy-ca.crt && sudo update-ca-certificates`
 				);
 				return;
 			}
 			
 			// Execute installation command
-			const terminal = vscode.window.createTerminal('HumanAgent: Install Certificate');
+			const terminal = vscode.window.createTerminal('HITL: Install Certificate');
 			terminal.sendText(installCommand);
 			terminal.show();
 			
@@ -634,7 +634,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	});
 
 	// Register uninstall proxy certificate command
-	const uninstallProxyCertificateCommand = vscode.commands.registerCommand('humanagent-mcp.uninstallProxyCertificate', async () => {
+	const uninstallProxyCertificateCommand = vscode.commands.registerCommand('hitl-mcp.uninstallProxyCertificate', async () => {
 		try {
 			// Check if proxy is currently enabled
 			const proxyConfig = vscode.workspace.getConfiguration().get('http.proxy');
@@ -656,7 +656,7 @@ export async function activate(context: vscode.ExtensionContext) {
 			
 			// Show confirmation message
 			const proceed = await vscode.window.showWarningMessage(
-				'This will remove the HumanAgent Proxy CA certificate from your system keychain. This requires administrator privileges (sudo password).',
+				'This will remove the HITL Proxy CA certificate from your system keychain. This requires administrator privileges (sudo password).',
 				{ modal: true },
 				'Uninstall'
 			);
@@ -669,21 +669,21 @@ export async function activate(context: vscode.ExtensionContext) {
 			let uninstallCommand: string;
 			if (process.platform === 'darwin') {
 				// macOS
-				uninstallCommand = 'sudo security delete-certificate -c "HumanAgent Proxy CA" /Library/Keychains/System.keychain';
+				uninstallCommand = 'sudo security delete-certificate -c "HITL Proxy CA" /Library/Keychains/System.keychain';
 			} else if (process.platform === 'win32') {
 				// Windows
-				uninstallCommand = 'certutil -delstore Root "HumanAgent Proxy CA"';
+				uninstallCommand = 'certutil -delstore Root "HITL Proxy CA"';
 			} else {
 				// Linux
 				vscode.window.showWarningMessage(
 					'Certificate uninstallation on Linux varies by distribution. Please remove manually:\n' +
-					'sudo rm /usr/local/share/ca-certificates/humanagent-proxy-ca.crt && sudo update-ca-certificates'
+					'sudo rm /usr/local/share/ca-certificates/hitl-proxy-ca.crt && sudo update-ca-certificates'
 				);
 				return;
 			}
 			
 			// Execute uninstallation command
-			const terminal = vscode.window.createTerminal('HumanAgent: Uninstall Certificate');
+			const terminal = vscode.window.createTerminal('HITL: Uninstall Certificate');
 			terminal.sendText(uninstallCommand);
 			terminal.show();
 			
@@ -697,7 +697,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	});
 
 	// Register verify certificate command (internal use by enableProxy)
-	const verifyCertificateCommand = vscode.commands.registerCommand('humanagent-mcp.verifyCertificate', async () => {
+	const verifyCertificateCommand = vscode.commands.registerCommand('hitl-mcp.verifyCertificate', async () => {
 		return await verifyCertificateInstallation();
 	});
 
@@ -719,37 +719,37 @@ export async function activate(context: vscode.ExtensionContext) {
 	);
 
 	// Show welcome message
-	//vscode.window.showInformationMessage('HumanAgent MCP extension activated successfully!');
+	//vscode.window.showInformationMessage('HITL MCP extension activated successfully!');
 }
 
 // Simplified server startup and session registration (no mcp.json dependency)
 async function ensureServerAndRegisterSession(sessionId: string): Promise<void> {
 	try {
-		console.log(`HumanAgent MCP: Starting server and registering session ${sessionId}...`);
+		console.log(`HITL MCP: Starting server and registering session ${sessionId}...`);
 		
 		// Check if server is accessible, if not start it
 		const serverAccessible = await isServerAccessible();
 		if (!serverAccessible) {
-			console.log('HumanAgent MCP: Server not accessible, starting server...');
+			console.log('HITL MCP: Server not accessible, starting server...');
 			const serverStarted = await serverManager.ensureServerRunning();
 			if (!serverStarted) {
-				console.error('HumanAgent MCP: Failed to start server');
-				vscode.window.showWarningMessage('HumanAgent MCP Server could not be started. Some features may not work.');
+				console.error('HITL MCP: Failed to start server');
+				vscode.window.showWarningMessage('HITL MCP Server could not be started. Some features may not work.');
 				return;
 			}
-			console.log('HumanAgent MCP: Server started successfully');
+			console.log('HITL MCP: Server started successfully');
 		}
 		
 		// Register session with the server
 		const sessionExists = await validateSessionWithServer(sessionId);
 		if (!sessionExists) {
-			console.log(`HumanAgent MCP: Session ${sessionId} not found on server, registering new session...`);
+			console.log(`HITL MCP: Session ${sessionId} not found on server, registering new session...`);
 			await registerSessionWithStandaloneServer(sessionId, false);
 		} else {
-			console.log(`HumanAgent MCP: Session ${sessionId} exists on server, re-registering with override data...`);
+			console.log(`HITL MCP: Session ${sessionId} exists on server, re-registering with override data...`);
 			await registerSessionWithStandaloneServer(sessionId, true);
 		}
-		console.log(`HumanAgent MCP: Session registration complete for ${sessionId}`);
+		console.log(`HITL MCP: Session registration complete for ${sessionId}`);
 		
 		// Validate session context with server (restores persisted session state)
 		const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri?.fsPath;
@@ -768,19 +768,19 @@ async function ensureServerAndRegisterSession(sessionId: string): Promise<void> 
 				
 				if (validateResponse.ok) {
 					const result: any = await validateResponse.json();
-					console.log(`HumanAgent MCP: Session context validated - restored: ${result.restored}`);
+					console.log(`HITL MCP: Session context validated - restored: ${result.restored}`);
 				} else {
-					console.warn(`HumanAgent MCP: Session validation returned status ${validateResponse.status}`);
+					console.warn(`HITL MCP: Session validation returned status ${validateResponse.status}`);
 				}
 			} catch (error) {
-				console.warn('HumanAgent MCP: Session context validation failed (non-fatal):', error);
+				console.warn('HITL MCP: Session context validation failed (non-fatal):', error);
 				// Non-fatal - server will get context on first request if validation fails
 			}
 		}
 		
 	} catch (error) {
-		console.error('HumanAgent MCP: Failed to start server or register session:', error);
-		vscode.window.showWarningMessage('HumanAgent MCP Server could not be initialized. Please check the server status and try reloading the workspace.');
+		console.error('HITL MCP: Failed to start server or register session:', error);
+		vscode.window.showWarningMessage('HITL MCP Server could not be initialized. Please check the server status and try reloading the workspace.');
 	}
 }
 
@@ -809,7 +809,7 @@ async function isServerAccessible(): Promise<boolean> {
 		});
 		return response.ok;
 	} catch (error) {
-		console.log('HumanAgent MCP: Server accessibility check failed, retrying in 3 seconds...', error);
+		console.log('HITL MCP: Server accessibility check failed, retrying in 3 seconds...', error);
 		
 		// Wait 3 seconds and try once more
 		await new Promise(resolve => setTimeout(resolve, 3000));
@@ -821,11 +821,11 @@ async function isServerAccessible(): Promise<boolean> {
 			});
 			
 			if (retryResponse.ok) {
-				console.log('HumanAgent MCP: Server accessible on retry');
+				console.log('HITL MCP: Server accessible on retry');
 				return true;
 			}
 		} catch (retryError) {
-			console.log('HumanAgent MCP: Server accessibility retry failed:', retryError);
+			console.log('HITL MCP: Server accessibility retry failed:', retryError);
 		}
 		
 		return false;
@@ -846,14 +846,14 @@ async function validateSessionWithServer(sessionId: string): Promise<boolean> {
 		
 		if (response.ok) {
 			const result = await response.json() as any;
-			console.log(`HumanAgent MCP: Session ${sessionId} validated on server`);
+			console.log(`HITL MCP: Session ${sessionId} validated on server`);
 			return true;
 		} else {
-			console.log(`HumanAgent MCP: Session ${sessionId} not found on server (${response.status})`);
+			console.log(`HITL MCP: Session ${sessionId} not found on server (${response.status})`);
 			return false;
 		}
 	} catch (error) {
-		console.log(`HumanAgent MCP: Session ${sessionId} validation failed, retrying in 3 seconds...`, error);
+		console.log(`HITL MCP: Session ${sessionId} validation failed, retrying in 3 seconds...`, error);
 		
 		// Wait 3 seconds and try once more
 		await new Promise(resolve => setTimeout(resolve, 3000));
@@ -870,14 +870,14 @@ async function validateSessionWithServer(sessionId: string): Promise<boolean> {
 			
 			if (retryResponse.ok) {
 				const result = await retryResponse.json() as any;
-				console.log(`HumanAgent MCP: Session ${sessionId} validated on server (retry)`);
+				console.log(`HITL MCP: Session ${sessionId} validated on server (retry)`);
 				return true;
 			} else {
-				console.log(`HumanAgent MCP: Session ${sessionId} not found on server (${retryResponse.status}) (retry)`);
+				console.log(`HITL MCP: Session ${sessionId} not found on server (${retryResponse.status}) (retry)`);
 				return false;
 			}
 		} catch (retryError) {
-			console.log(`HumanAgent MCP: Session ${sessionId} validation retry failed:`, retryError);
+			console.log(`HITL MCP: Session ${sessionId} validation retry failed:`, retryError);
 			return false;
 		}
 	}
@@ -889,23 +889,23 @@ async function registerSessionWithStandaloneServer(sessionId: string, forceRereg
 	let overrideData = null;
 	const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 	if (workspaceRoot) {
-		const overrideFilePath = path.join(workspaceRoot, '.vscode', 'HumanAgentOverride.json');
+		const overrideFilePath = path.join(workspaceRoot, '.vscode', 'HITLOverride.json');
 		try {
 			const fs = require('fs');
 			if (fs.existsSync(overrideFilePath)) {
 				const overrideContent = fs.readFileSync(overrideFilePath, 'utf8');
 				overrideData = JSON.parse(overrideContent);
-				console.log(`HumanAgent MCP: Loaded override data for session ${sessionId}`);
+				console.log(`HITL MCP: Loaded override data for session ${sessionId}`);
 			}
 		} catch (error) {
-			console.error(`HumanAgent MCP: Error reading override file:`, error);
+			console.error(`HITL MCP: Error reading override file:`, error);
 		}
 	}
 	
 	// Get VS Code's session ID for mapping
 	const vscodeSessionId = vscode.env.sessionId;
-	console.log(`HumanAgent MCP: VS Code Session ID: ${vscodeSessionId}`);
-	console.log(`HumanAgent MCP: Workspace Path: ${workspaceRoot || 'none'}`);
+	console.log(`HITL MCP: VS Code Session ID: ${vscodeSessionId}`);
+	console.log(`HITL MCP: Workspace Path: ${workspaceRoot || 'none'}`);
 	
 	const requestBody = { 
 		sessionId,
@@ -924,13 +924,13 @@ async function registerSessionWithStandaloneServer(sessionId: string, forceRereg
 		
 		if (response.ok) {
 			const result = await response.json() as any;
-			console.log(`HumanAgent MCP: Session ${sessionId} registered successfully. Total sessions: ${result.totalSessions}`);
+			console.log(`HITL MCP: Session ${sessionId} registered successfully. Total sessions: ${result.totalSessions}`);
 			return;
 		} else {
-			console.error(`HumanAgent MCP: Failed to register session ${sessionId}: ${response.status}`);
+			console.error(`HITL MCP: Failed to register session ${sessionId}: ${response.status}`);
 		}
 	} catch (error) {
-		console.error(`HumanAgent MCP: Error registering session ${sessionId}, retrying in 3 seconds...`, error);
+		console.error(`HITL MCP: Error registering session ${sessionId}, retrying in 3 seconds...`, error);
 
 		
 		// Wait 3 seconds and try once more
@@ -945,14 +945,14 @@ async function registerSessionWithStandaloneServer(sessionId: string, forceRereg
 			
 			if (retryResponse.ok) {
 				const result = await retryResponse.json() as any;
-				console.log(`HumanAgent MCP: Session ${sessionId} registered successfully on retry. Total sessions: ${result.totalSessions}`);
+				console.log(`HITL MCP: Session ${sessionId} registered successfully on retry. Total sessions: ${result.totalSessions}`);
 				return;
 			} else {
-				console.error(`HumanAgent MCP: Failed to register session ${sessionId} on retry: ${retryResponse.status}`);
+				console.error(`HITL MCP: Failed to register session ${sessionId} on retry: ${retryResponse.status}`);
 				throw new Error(`Registration failed: ${retryResponse.status}`);
 			}
 		} catch (retryError) {
-			console.error(`HumanAgent MCP: Session registration retry failed:`, retryError);
+			console.error(`HITL MCP: Session registration retry failed:`, retryError);
 			throw new Error(`Registration failed after retry: ${retryError}`);
 		}
 	}
@@ -969,68 +969,68 @@ async function unregisterSessionWithStandaloneServer(sessionId: string): Promise
 		
 		if (response.ok) {
 			const result = await response.json() as any;
-			console.log(`HumanAgent MCP: Session ${sessionId} unregistered successfully. Total sessions: ${result.totalSessions}`);
+			console.log(`HITL MCP: Session ${sessionId} unregistered successfully. Total sessions: ${result.totalSessions}`);
 		} else {
-			console.error(`HumanAgent MCP: Failed to unregister session ${sessionId}: ${response.status}`);
+			console.error(`HITL MCP: Failed to unregister session ${sessionId}: ${response.status}`);
 		}
 	} catch (error) {
-		console.error(`HumanAgent MCP: Error unregistering session ${sessionId}:`, error);
+		console.error(`HITL MCP: Error unregistering session ${sessionId}:`, error);
 	}
 }
 
 // Check if server is accessible and register session, or start server if needed
 async function ensureServerAccessibleAndRegister(sessionId: string, configType: 'workspace' | 'global'): Promise<void> {
 	try {
-		console.log(`HumanAgent MCP: Checking if server is accessible for ${configType} configuration...`);
+		console.log(`HITL MCP: Checking if server is accessible for ${configType} configuration...`);
 		
 		// Check if server is running and accessible
 		let serverAccessible = await isServerAccessible();
 		
 		if (!serverAccessible) {
-			console.log('HumanAgent MCP: Server not accessible, attempting to start it...');
+			console.log('HITL MCP: Server not accessible, attempting to start it...');
 			
 			// Try to start the server
 			const started = await serverManager.ensureServerRunning();
 			if (started) {
-				console.log('HumanAgent MCP: Server started successfully, rechecking accessibility...');
+				console.log('HITL MCP: Server started successfully, rechecking accessibility...');
 				// Wait a moment for server to fully initialize
 				await new Promise(resolve => setTimeout(resolve, 2000));
 				serverAccessible = await isServerAccessible();
 			} else {
-				console.log('HumanAgent MCP: Failed to start server');
+				console.log('HITL MCP: Failed to start server');
 			}
 		}
 		
 		if (serverAccessible) {
-			console.log('HumanAgent MCP: Server is accessible, registering session...');
+			console.log('HITL MCP: Server is accessible, registering session...');
 			// Server is running, validate and register session
 			const sessionExists = await validateSessionWithServer(sessionId);
 			if (!sessionExists) {
-				console.log(`HumanAgent MCP: Session ${sessionId} not found on server, registering new session...`);
+				console.log(`HITL MCP: Session ${sessionId} not found on server, registering new session...`);
 				await registerSessionWithStandaloneServer(sessionId, false);
 			} else {
-				console.log(`HumanAgent MCP: Session ${sessionId} exists on server, re-registering with override data...`);
+				console.log(`HITL MCP: Session ${sessionId} exists on server, re-registering with override data...`);
 				await registerSessionWithStandaloneServer(sessionId, true);
 			}
-			console.log(`HumanAgent MCP: Session registration complete for ${sessionId}`);
+			console.log(`HITL MCP: Session registration complete for ${sessionId}`);
 		} else {
 			// Server still not accessible after trying to start it
-			console.log('HumanAgent MCP: Server could not be started or is not responding');
+			console.log('HITL MCP: Server could not be started or is not responding');
 			const configLocation = configType === 'workspace' ? 'workspace' : 'global';
 			
 			vscode.window.showWarningMessage(
-				`HumanAgent MCP Server is configured in ${configLocation} settings but could not be started. Would you like to try starting it manually?`,
+				`HITL MCP Server is configured in ${configLocation} settings but could not be started. Would you like to try starting it manually?`,
 				'Start Server', 'Show Status', 'Open Configuration'
 			).then(selection => {
 				switch (selection) {
 					case 'Start Server':
-						vscode.commands.executeCommand('humanagent-mcp.startServer');
+						vscode.commands.executeCommand('hitl-mcp.startServer');
 						break;
 					case 'Show Status':
-						vscode.commands.executeCommand('humanagent-mcp.showStatus');
+						vscode.commands.executeCommand('hitl-mcp.showStatus');
 						break;
 					case 'Open Configuration':
-						vscode.commands.executeCommand('humanagent-mcp.configureMcp');
+						vscode.commands.executeCommand('hitl-mcp.configureMcp');
 						break;
 				}
 			});
@@ -1038,7 +1038,7 @@ async function ensureServerAccessibleAndRegister(sessionId: string, configType: 
 		
 	} catch (error) {
 		console.error('Error checking server accessibility:', error);
-		vscode.window.showErrorMessage('Failed to check HumanAgent MCP Server accessibility');
+		vscode.window.showErrorMessage('Failed to check HITL MCP Server accessibility');
 	}
 }
 
@@ -1056,5 +1056,5 @@ export async function deactivate() {
 	
 	// Note: We don't kill the standalone server as it's running independently
 	// Other extensions may still be using it, and it should persist across workspace changes
-	console.log(`HumanAgent MCP: Extension deactivated for session ${workspaceSessionId}`);
+	console.log(`HITL MCP: Extension deactivated for session ${workspaceSessionId}`);
 }

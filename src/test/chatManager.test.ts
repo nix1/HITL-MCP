@@ -51,6 +51,24 @@ suite('ChatManager', () => {
       assert.strictEqual(messages[0].content, 'Hello');
     });
 
+    test('adds a message with toolName and toolData', () => {
+      chatManager.addMessage('s1', {
+        id: '2',
+        sender: 'agent',
+        content: 'Action requested',
+        timestamp: new Date(),
+        type: 'text',
+        toolName: 'Request_Approval',
+        toolData: { action_type: 'file_deletion', impact: 'high' }
+      });
+
+      const messages = chatManager.getMessages('s1');
+      const msg = messages.find(m => m.id === '2');
+      assert.ok(msg);
+      assert.strictEqual(msg!.toolName, 'Request_Approval');
+      assert.deepStrictEqual(msg!.toolData, { action_type: 'file_deletion', impact: 'high' });
+    });
+
     test('returns a copy of messages (not a reference)', () => {
       chatManager.addMessage('s1', {
         id: '1',

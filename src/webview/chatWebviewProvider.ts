@@ -9,7 +9,7 @@ import { AudioNotification } from '../audio/audioNotification';
 import { ServerManager } from '../serverManager';
 
 export class ChatWebviewProvider implements vscode.WebviewViewProvider {
-  public static readonly viewType = 'humanagent-mcp.chatView';
+  public static readonly viewType = 'hitl-mcp.chatView';
 
   private _view?: vscode.WebviewView;
   private mcpServer: McpServer | null;
@@ -55,7 +55,7 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
   private loadNotificationSettings() {
     try {
       // Load settings from VS Code configuration
-      const config = vscode.workspace.getConfiguration('humanagent-mcp');
+      const config = vscode.workspace.getConfiguration('hitl-mcp');
       this.notificationSettings = {
         enableSound: config.get<boolean>('notifications.enableSound', true),
         enableFlashing: config.get<boolean>('notifications.enableFlashing', true)
@@ -66,7 +66,7 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  public async displayHumanAgentMessage(message: string, context?: string, requestId?: string) {
+  public async displayHITLMessage(message: string, context?: string, requestId?: string) {
     // Store the current request ID for response handling
     this.currentRequestId = requestId;
     
@@ -171,7 +171,7 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
           break;
         case 'triggerUpdate':
           // Trigger extension update command
-          vscode.commands.executeCommand('humanagent-mcp.updateExtension');
+          vscode.commands.executeCommand('hitl-mcp.updateExtension');
           break;
       }
     });
@@ -302,7 +302,7 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
     }
 
     // Verify certificate is installed and working before enabling proxy
-    const certVerified = await vscode.commands.executeCommand('humanagent-mcp.verifyCertificate') as boolean;
+    const certVerified = await vscode.commands.executeCommand('hitl-mcp.verifyCertificate') as boolean;
     
     if (!certVerified) {
       const action = await vscode.window.showErrorMessage(
@@ -312,7 +312,7 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
       );
       
       if (action === 'Install Certificate') {
-        await vscode.commands.executeCommand('humanagent-mcp.installProxyCertificate');
+        await vscode.commands.executeCommand('hitl-mcp.installProxyCertificate');
       }
       return;
     }
@@ -343,7 +343,7 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
       }
 
       const vscodeDir = path.join(workspaceFolder.uri.fsPath, '.vscode');
-      const overrideFilePath = path.join(vscodeDir, 'HumanAgentOverride.json');
+      const overrideFilePath = path.join(vscodeDir, 'HITLOverride.json');
 
       // Create .vscode directory if it doesn't exist
       if (!fs.existsSync(vscodeDir)) {
@@ -368,9 +368,9 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
       }
       
       const toolsData = await response.json() as { tools: any[] };
-      const defaultTool = toolsData.tools.find((tool: any) => tool.name === 'HumanAgent_Chat');
+      const defaultTool = toolsData.tools.find((tool: any) => tool.name === 'HITL_Chat');
       if (!defaultTool) {
-        throw new Error('HumanAgent_Chat tool not found on server');
+        throw new Error('HITL_Chat tool not found on server');
       }
       
       console.log('ChatWebviewProvider: Fetched current tool configuration from server');
@@ -399,9 +399,9 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
       // Create override configuration  
       const overrideConfig = {
         version: '1.0.0',
-        description: 'HumanAgent MCP Tool Overrides for this workspace. Modify tool configurations below to customize MCP server behavior.',
+        description: 'HITL MCP Tool Overrides for this workspace. Modify tool configurations below to customize MCP server behavior.',
         tools: {
-          HumanAgent_Chat: defaultTool,
+          HITL_Chat: defaultTool,
           example_custom_tool: exampleTool
         },
         messageSettings: {
@@ -410,9 +410,9 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
             autoAppendText: ""
           },
           toolSpecific: {
-            HumanAgent_Chat: {
+            HITL_Chat: {
               autoAppendEnabled: true,
-              autoAppendText: "(No need to confirm this last part but please remember) Dont forget to allways reply here in the HumanAgent_Chat tool! Dont circumevent this tool unless asked explicitly by the user. "
+              autoAppendText: "(No need to confirm this last part but please remember) Dont forget to allways reply here in the HITL_Chat tool! Dont circumevent this tool unless asked explicitly by the user. "
             }
           }
         },
@@ -460,15 +460,15 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
     try {
       switch (action) {
         case 'startServer':
-          await vscode.commands.executeCommand('humanagent-mcp.startServer');
+          await vscode.commands.executeCommand('hitl-mcp.startServer');
           break;
         case 'stopServer':
           // Always disable proxy before stopping server
           await this.disableProxy();
-          await vscode.commands.executeCommand('humanagent-mcp.stopServer');
+          await vscode.commands.executeCommand('hitl-mcp.stopServer');
           break;
         case 'restartServer':
-          await vscode.commands.executeCommand('humanagent-mcp.restartServer');
+          await vscode.commands.executeCommand('hitl-mcp.restartServer');
           break;
         case 'enableGlobalProxy':
         case 'enableProxy': // Legacy support
@@ -479,23 +479,23 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
           await this.disableProxy();
           break;
         case 'installCertificate':
-          await vscode.commands.executeCommand('humanagent-mcp.installProxyCertificate');
+          await vscode.commands.executeCommand('hitl-mcp.installProxyCertificate');
           break;
         case 'uninstallCertificate':
-          await vscode.commands.executeCommand('humanagent-mcp.uninstallProxyCertificate');
+          await vscode.commands.executeCommand('hitl-mcp.uninstallProxyCertificate');
           break;
         case 'register':
         case 'unregister':
           // Registration handled automatically by native provider
-          vscode.window.showInformationMessage('HumanAgent MCP registration is handled automatically by the native provider.');
+          vscode.window.showInformationMessage('HITL MCP registration is handled automatically by the native provider.');
           break;
         case 'testSound':
           // Test notification sound by triggering a fake notification
-          await this.displayHumanAgentMessage('🔊 Audio test - this is a test notification sound!', 'Testing audio notifications', 'test-audio');
+          await this.displayHITLMessage('🔊 Audio test - this is a test notification sound!', 'Testing audio notifications', 'test-audio');
           break;
         case 'requestServerStatus':
           // Show the same notification popup as the main status command
-          vscode.commands.executeCommand('humanagent-mcp.showStatus');
+          vscode.commands.executeCommand('hitl-mcp.showStatus');
           break;
         case 'overridePrompt':
           await this.createPromptOverrideFile();
@@ -507,13 +507,13 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
           await this.openWebInterface();
           break;
         case 'openHelp':
-          vscode.env.openExternal(vscode.Uri.parse('https://github.com/nix1/HumanAgent-MCP#readme'));
+          vscode.env.openExternal(vscode.Uri.parse('https://github.com/nix1/HITL-MCP#readme'));
           break;
         case 'reportIssue':
-          vscode.env.openExternal(vscode.Uri.parse('https://github.com/nix1/HumanAgent-MCP/issues/new'));
+          vscode.env.openExternal(vscode.Uri.parse('https://github.com/nix1/HITL-MCP/issues/new'));
           break;
         case 'requestFeature':
-          vscode.env.openExternal(vscode.Uri.parse('https://github.com/nix1/HumanAgent-MCP/issues/new'));
+          vscode.env.openExternal(vscode.Uri.parse('https://github.com/nix1/HITL-MCP/issues/new'));
           break;
       }
       
@@ -589,7 +589,7 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
       
       // Store the session name using the same mechanism as extension.ts
       if (this.context) {
-        await this.context.globalState.update(`humanagent-session-name-${sessionId}`, name);
+        await this.context.globalState.update(`hitl-session-name-${sessionId}`, name);
         console.log(`Stored session name for ${sessionId}: "${name}"`);
         
         // Update the UI/title if needed - only show if this is our current session
@@ -604,7 +604,7 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
 
   private async openWebInterface() {
     try {
-      const webUrl = `http://localhost:${this.port}/HumanAgent`;
+      const webUrl = `http://localhost:${this.port}/HITL`;
       
       // Open in external browser
       await vscode.env.openExternal(vscode.Uri.parse(webUrl));
@@ -618,7 +618,7 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
   }
 
   private _getHtmlForWebview(webview: vscode.Webview) {
-    // Check if HumanAgentOverride.json exists in workspace and load quick replies
+    // Check if HITLOverride.json exists in workspace and load quick replies
     let overrideFileExists = false;
     let quickReplyOptions = [
       "Yes Please Proceed",
@@ -629,7 +629,7 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
     if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
       const workspaceFolder = vscode.workspace.workspaceFolders[0];
       workspacePath = workspaceFolder.uri.fsPath;
-      const overrideFilePath = path.join(workspacePath, '.vscode', 'HumanAgentOverride.json');
+      const overrideFilePath = path.join(workspacePath, '.vscode', 'HITLOverride.json');
       overrideFileExists = fs.existsSync(overrideFilePath);
       
       // Load quick replies from override file if it exists
@@ -659,7 +659,7 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>HumanAgent Chat</title>
+        <title>HITL Chat</title>
         <style>
           :root {
             --bubble-radius: 12px;
@@ -1021,7 +1021,7 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
           const sessionId = '${this.workspaceSessionId}';
           window.overrideFileExists = ${overrideFileExists};
           
-          let currentPendingRequestId = '${hasPendingResponse ? pendingRequestId : ''}';
+          let currentPendingRequestId = '${this.currentRequestId || ''}';
           
           // Play notification beep sound
           function playNotificationBeep() {
@@ -1429,13 +1429,13 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
             
             if (statusElement) {
               if (connected) {
-                statusElement.textContent = 'HumanAgent MCP Server (Connected)';
+                statusElement.textContent = 'HITL MCP Server (Connected)';
                 if (statusDot) statusDot.style.backgroundColor = '#4caf50';
               } else if (error) {
-                statusElement.textContent = 'HumanAgent MCP Server (Disconnected)';
+                statusElement.textContent = 'HITL MCP Server (Disconnected)';
                 if (statusDot) statusDot.style.backgroundColor = '#f44336';
               } else {
-                statusElement.textContent = 'HumanAgent MCP Server (Connecting...)';
+                statusElement.textContent = 'HITL MCP Server (Connecting...)';
                 if (statusDot) statusDot.style.backgroundColor = '#ff9800';
               }
             }

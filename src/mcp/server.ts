@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import * as crypto from 'crypto';
-import { McpMessage, McpServerConfig, HumanAgentSession, ChatMessage, McpTool, HumanAgentChatToolParams, HumanAgentChatToolResult } from './types';
+import { McpMessage, McpServerConfig, HITLSession, ChatMessage, McpTool, HITLChatToolParams, HITLChatToolResult } from './types';
 import { ChatManager } from './chatManager';
 import { ProxyServer } from './proxyServer';
 import { generateCACertificate } from 'mockttp';
@@ -87,7 +87,7 @@ async function initializeProxyCA(storagePath?: string): Promise<{ keyPath: strin
   // Use provided storage path or fallback to temp directory
   const caCacheDir = storagePath 
     ? path.join(storagePath, 'proxy-ca')
-    : path.join(os.tmpdir(), 'humanagent-proxy');
+    : path.join(os.tmpdir(), 'hitl-proxy');
     
   const caPath = path.join(caCacheDir, 'ca.pem');
   const keyPath = path.join(caCacheDir, 'ca.key');
@@ -110,8 +110,8 @@ async function initializeProxyCA(storagePath?: string): Promise<{ keyPath: strin
   try {
     const ca = await generateCACertificate({
       subject: {
-        commonName: 'HumanAgent Proxy CA - Testing Only',
-        organizationName: 'HumanAgent'
+        commonName: 'HITL Proxy CA - Testing Only',
+        organizationName: 'HITL'
       },
       bits: 2048
     });
@@ -151,7 +151,7 @@ class DebugLogger {
     try {
       // Always log to system temp directory - server is workspace-independent
       const tempDir = os.tmpdir();
-      this.logPath = path.join(tempDir, 'HumanAgent-server.log');
+      this.logPath = path.join(tempDir, 'HITL-server.log');
       
       console.log(`[LOGGER] Attempting to create log file at: ${this.logPath}`);
       
@@ -271,7 +271,7 @@ export class McpServer extends EventEmitter {
     });
     
     this.config = {
-      name: 'HumanAgentMCP',
+      name: 'HITLMCP',
       description: 'MCP server for chatting with human agents',
       version: VERSION,
       capabilities: {
@@ -434,9 +434,9 @@ export class McpServer extends EventEmitter {
   }
 
   private initializeDefaultTools(): void {
-    // 1. HumanAgent_Chat (ogólna komunikacja)
+    // 1. HITL_Chat (ogólna komunikacja)
     const humanAgentChatTool: McpTool = {
-      name: 'HumanAgent_Chat',
+      name: 'HITL_Chat',
       description: 'Real-time, instant-response chat interface. Use this tool whenever you need specific domain knowledge, clarification on requirements, or business logic context. It guarantees a synchronous response faster than guessing.',
       inputSchema: {
         type: 'object',
@@ -533,10 +533,10 @@ export class McpServer extends EventEmitter {
     }
 
     // Check for workspace overrides for this session
-    const overrideTool = this.loadWorkspaceOverride('HumanAgent_Chat', workspacePath);
+    const overrideTool = this.loadWorkspaceOverride('HITL_Chat', workspacePath);
     let hasOverrides = false;
     if (overrideTool) {
-      this.debugLogger.log('INFO', `Using workspace override for session ${sessionId} - HumanAgent_Chat tool`);
+      this.debugLogger.log('INFO', `Using workspace override for session ${sessionId} - HITL_Chat tool`);
       sessionToolMap.set(overrideTool.name, overrideTool);
       hasOverrides = true;
     }
@@ -587,7 +587,7 @@ export class McpServer extends EventEmitter {
         return null;
       }
 
-      const overrideFilePath = path.join(targetWorkspacePath, '.vscode', 'HumanAgentOverride.json');
+      const overrideFilePath = path.join(targetWorkspacePath, '.vscode', 'HITLOverride.json');
       
       if (!fs.existsSync(overrideFilePath)) {
         this.debugLogger.log('DEBUG', 'No workspace override file found');
@@ -846,7 +846,7 @@ export class McpServer extends EventEmitter {
       // MCP tools endpoint (extension only, no SSE conflicts)
       await this.handleMcpToolsEndpoint(req, res, reqUrl);
       return;
-    } else if (req.url === '/HumanAgent') {
+    } else if (req.url === '/HITL') {
       // Web interface for multi-session chat
       await this.handleWebInterface(req, res);
       return;
@@ -919,25 +919,25 @@ export class McpServer extends EventEmitter {
             this.debugLogger.log('HTTP', `Added sessionId ${sessionId} to MCP message params`);
           }
           
-          // Special handling for HumanAgent_Chat tool to prevent undici timeout
+          // Special handling for HITL_Chat tool to prevent undici timeout
           // This tool can wait indefinitely for human response, so we need to:
           // 1. Send HTTP headers immediately (stops undici's 5-minute headersTimeout)
           // 2. Send keepalive data every 4 minutes (resets undici's 5-minute bodyTimeout)
-          if (message.method === 'tools/call' && message.params?.name === 'HumanAgent_Chat') {
-            this.debugLogger.log('HTTP', 'HumanAgent_Chat detected - using streaming response to prevent timeout');
+          if (message.method === 'tools/call' && message.params?.name === 'HITL_Chat') {
+            this.debugLogger.log('HTTP', 'HITL_Chat detected - using streaming response to prevent timeout');
             
             // Send headers immediately to stop headersTimeout
             res.statusCode = 200;
             res.setHeader('Content-Type', 'application/json');
             res.setHeader('Transfer-Encoding', 'chunked');
-            this.debugLogger.log('HTTP', 'Sent immediate headers for HumanAgent_Chat');
+            this.debugLogger.log('HTTP', 'Sent immediate headers for HITL_Chat');
             
             // Start keepalive to reset bodyTimeout every 4 minutes
             // Note: We write a space character which is valid JSON whitespace and gets ignored
             const keepaliveInterval = setInterval(() => {
               if (!res.destroyed) {
                 res.write(' '); // Write whitespace to reset bodyTimeout
-                this.debugLogger.log('HTTP', 'Sent keepalive for HumanAgent_Chat');
+                this.debugLogger.log('HTTP', 'Sent keepalive for HITL_Chat');
               } else {
                 clearInterval(keepaliveInterval);
               }
@@ -948,7 +948,7 @@ export class McpServer extends EventEmitter {
             
             // Cleanup keepalive and send final response
             clearInterval(keepaliveInterval);
-            this.debugLogger.log('HTTP', 'HumanAgent_Chat response received, sending to client');
+            this.debugLogger.log('HTTP', 'HITL_Chat response received, sending to client');
             const responseJson = JSON.stringify(response);
             res.end(responseJson); // This sends the actual JSON response
             return;
@@ -1526,7 +1526,7 @@ export class McpServer extends EventEmitter {
         sessionToolNames: sessionTools ? Array.from(sessionTools.keys()) : [],
         defaultToolCount: defaultTools.length,
         finalToolCount: tools.length,
-        humanAgentChatTool: tools.find(t => t.name === 'HumanAgent_Chat'),
+        humanAgentChatTool: tools.find(t => t.name === 'HITL_Chat'),
         debugInfo: {
           sessionExists: this.activeSessions.has(sessionId),
           sessionToolsRegistered: this.sessionTools.has(sessionId)
@@ -2491,7 +2491,7 @@ export class McpServer extends EventEmitter {
   }
 
   private async handleWebInterface(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
-    this.debugLogger.log('HTTP', 'Serving web interface at /HumanAgent');
+    this.debugLogger.log('HTTP', 'Serving web interface at /HITL');
     
     // Set HTML content type
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -2531,7 +2531,7 @@ export class McpServer extends EventEmitter {
       } else if (workspaceRoot) {
         // Fallback: Try to read from workspace override file
         try {
-          const overrideFilePath = path.join(workspaceRoot, '.vscode', 'HumanAgentOverride.json');
+          const overrideFilePath = path.join(workspaceRoot, '.vscode', 'HITLOverride.json');
           if (fs.existsSync(overrideFilePath)) {
             const overrideContent = fs.readFileSync(overrideFilePath, 'utf8');
             const overrideData = JSON.parse(overrideContent);
@@ -2566,7 +2566,7 @@ export class McpServer extends EventEmitter {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HumanAgent - Multi-Session Chat Interface</title>
+    <title>HITL - Multi-Session Chat Interface</title>
     <style>
         :root {
             --vscode-foreground: #cccccc;
@@ -3360,7 +3360,7 @@ export class McpServer extends EventEmitter {
 <body>
     <div class="container">
         <div class="header">
-            <h1><span class="status-indicator"></span>HumanAgent Multi-Session Chat</h1>
+            <h1><span class="status-indicator"></span>HITL Multi-Session Chat</h1>
             <button class="shutdown-button" onclick="shutdownServer()" title="Stop Server">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                     <path d="M8 0a1 1 0 0 1 1 1v6a1 1 0 1 1-2 0V1a1 1 0 0 1 1-1z"/>
@@ -5359,18 +5359,18 @@ export class McpServer extends EventEmitter {
       const sessionTools = this.sessionTools.get(sessionIdToUse);
       if (sessionTools) {
         this.debugLogger.log('TOOLS', `Session tools found: ${Array.from(sessionTools.keys()).join(', ')}`);
-        // Log the actual HumanAgent_Chat tool description
-        const chatTool = sessionTools.get('HumanAgent_Chat');
+        // Log the actual HITL_Chat tool description
+        const chatTool = sessionTools.get('HITL_Chat');
         if (chatTool) {
-          this.debugLogger.log('TOOLS', `HumanAgent_Chat description: ${chatTool.description.substring(0, 100)}...`);
+          this.debugLogger.log('TOOLS', `HITL_Chat description: ${chatTool.description.substring(0, 100)}...`);
         }
       }
     } else {
       this.debugLogger.log('TOOLS', `Using default tools (no session ID available)`);
       // Also log default tool description for comparison
-      const defaultChatTool = this.tools.get('HumanAgent_Chat');
+      const defaultChatTool = this.tools.get('HITL_Chat');
       if (defaultChatTool) {
-        this.debugLogger.log('TOOLS', `Default HumanAgent_Chat description: ${defaultChatTool.description.substring(0, 100)}...`);
+        this.debugLogger.log('TOOLS', `Default HITL_Chat description: ${defaultChatTool.description.substring(0, 100)}...`);
       }
     }
     
@@ -5394,10 +5394,10 @@ export class McpServer extends EventEmitter {
     
     this.debugLogger.log('MCP', `Available tools for session ${sessionId || 'default'}:`, Array.from(availableTools.keys()));
     
-    const validTools = ['HumanAgent_Chat', 'Ask_Oracle', 'Get_Next_Task', 'Request_Approval'];
+    const validTools = ['HITL_Chat', 'Ask_Oracle', 'Get_Next_Task', 'Request_Approval'];
     if (validTools.includes(name) && availableTools.has(name)) {
       this.debugLogger.log('MCP', `Executing ${name} tool`);
-      return await this.handleHumanAgentChatTool(message.id, args, sessionId, name);
+      return await this.handleHITLChatTool(message.id, args, sessionId, name);
     }
     
     this.debugLogger.log('MCP', `Tool not found: ${name}`);
@@ -5411,19 +5411,19 @@ export class McpServer extends EventEmitter {
     };
   }
 
-  private async handleHumanAgentChatTool(messageId: string, params: HumanAgentChatToolParams, sessionId?: string, toolName?: string): Promise<McpMessage> {
-    this.debugLogger.log('TOOL', 'HumanAgent_Chat called with params:', params);
+  private async handleHITLChatTool(messageId: string, params: HITLChatToolParams, sessionId?: string, toolName?: string): Promise<McpMessage> {
+    this.debugLogger.log('TOOL', 'HITL_Chat called with params:', params);
     
     // Require valid session ID - no default fallback allowed
     const actualSessionId = sessionId || params.sessionId;
     if (!actualSessionId) {
-      this.debugLogger.log('ERROR', 'HumanAgent_Chat tool called without session ID - rejecting');
+      this.debugLogger.log('ERROR', 'HITL_Chat tool called without session ID - rejecting');
       return {
         id: messageId,
         type: 'response',
         error: {
           code: -32602,
-          message: 'Invalid parameters: sessionId is required for HumanAgent_Chat tool'
+          message: 'Invalid parameters: sessionId is required for HITL_Chat tool'
         }
       };
     }
@@ -5438,7 +5438,7 @@ export class McpServer extends EventEmitter {
     
     // Format display message based on tool type
     let displayMessage = '';
-    const activeToolName = toolName || 'HumanAgent_Chat';
+    const activeToolName = toolName || 'HITL_Chat';
     
     if (activeToolName === 'Request_Approval') {
       displayMessage = `**Approval Requested**\n**Action:** ${params.action_type || 'Unknown'}\n**Impact:** ${params.impact || 'Unknown'}\n**Justification:** ${params.justification || 'Unknown'}`;
@@ -5450,7 +5450,7 @@ export class McpServer extends EventEmitter {
       displayMessage = `**Task Request**\n**State:** ${params.agent_state || 'Idle'}`;
       if (params.current_context) displayMessage += `\n**Context:** ${params.current_context}`;
     } else {
-      // Default HumanAgent_Chat
+      // Default HITL_Chat
       displayMessage = params.context ? `${params.context}\n\n${params.message}` : (params.message || 'No message provided');
     }
     
@@ -5487,7 +5487,7 @@ export class McpServer extends EventEmitter {
         timestamp: new Date().toISOString()
       });
       
-      this.chatManager.addPendingRequest(actualSessionId, requestId, { ...params, toolName: toolName || 'HumanAgent_Chat' });
+      this.chatManager.addPendingRequest(actualSessionId, requestId, { ...params, toolName: toolName || 'HITL_Chat' });
       this.requestResolvers.set(requestId, {
         resolve: (response: string) => {
           const responseTime = Date.now() - startTime;
@@ -5506,7 +5506,7 @@ export class McpServer extends EventEmitter {
           // The 'response' here is the human's answer to AI's question
           // The AI will generate its own response separately after receiving this
           
-          const result: HumanAgentChatToolResult = {
+          const result: HITLChatToolResult = {
             content: [{
               type: 'text',
               text: response
@@ -5620,7 +5620,7 @@ export class McpServer extends EventEmitter {
       
       // Try to load message settings from workspace override file
       try {
-        const overrideFilePath = path.join(workspacePath, '.vscode', 'HumanAgentOverride.json');
+        const overrideFilePath = path.join(workspacePath, '.vscode', 'HITLOverride.json');
         if (fs.existsSync(overrideFilePath)) {
           const overrideContent = fs.readFileSync(overrideFilePath, 'utf8');
           const overrideFileData = JSON.parse(overrideContent);

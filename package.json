@@ -1,16 +1,16 @@
 {
-  "name": "humanagent-mcp",
-  "displayName": "HumanAgent MCP",
+  "name": "hitl-mcp",
+  "displayName": "HITL MCP",
   "description": "MCP server for chatting with a human agent",
   "version": "0.0.22",
   "publisher": "3DTek-xyz",
   "icon": "HumanAgent_Icon_Square.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/nix1/HumanAgent-MCP.git"
+    "url": "https://github.com/nix1/HITL-MCP.git"
   },
   "bugs": {
-    "url": "https://github.com/nix1/HumanAgent-MCP/issues"
+    "url": "https://github.com/nix1/HITL-MCP/issues"
   },
   "engines": {
     "vscode": "^1.105.0"
@@ -25,40 +25,40 @@
   "contributes": {
     "commands": [
       {
-        "command": "humanagent-mcp.createSession",
+        "command": "hitl-mcp.createSession",
         "title": "Create New Chat Session",
         "icon": "$(add)"
       },
       {
-        "command": "humanagent-mcp.refreshSessions",
+        "command": "hitl-mcp.refreshSessions",
         "title": "Refresh Sessions",
         "icon": "$(refresh)"
       },
       {
-        "command": "humanagent-mcp.showStatus",
+        "command": "hitl-mcp.showStatus",
         "title": "Show MCP Server Status"
       },
       {
-        "command": "humanagent-mcp.openChat",
+        "command": "hitl-mcp.openChat",
         "title": "Open Chat Session"
       },
       {
-        "command": "humanagent-mcp.startServer",
+        "command": "hitl-mcp.startServer",
         "title": "Start MCP Server",
         "icon": "$(play)"
       },
       {
-        "command": "humanagent-mcp.stopServer",
+        "command": "hitl-mcp.stopServer",
         "title": "Stop MCP Server",
         "icon": "$(stop)"
       },
       {
-        "command": "humanagent-mcp.restartServer",
+        "command": "hitl-mcp.restartServer",
         "title": "Restart MCP Server",
         "icon": "$(debug-restart)"
       },
       {
-        "command": "humanagent-mcp.reportIssue",
+        "command": "hitl-mcp.reportIssue",
         "title": "Report Issue / Suggestion",
         "icon": "$(github)"
       }
@@ -66,8 +66,8 @@
     "viewsContainers": {
       "panel": [
         {
-          "id": "humanagent-mcp",
-          "title": "HumanAgent Chat",
+          "id": "hitl-mcp",
+          "title": "HITL Chat",
           "icon": "$(comment-discussion)"
         }
       ]
@@ -75,16 +75,16 @@
     "views": {
       "explorer": [
         {
-          "id": "humanagent-mcp.chatSessions",
+          "id": "hitl-mcp.chatSessions",
           "name": "Chat Sessions",
           "when": "true",
           "icon": "$(comment-discussion)"
         }
       ],
-      "humanagent-mcp": [
+      "hitl-mcp": [
         {
           "type": "webview",
-          "id": "humanagent-mcp.chatView",
+          "id": "hitl-mcp.chatView",
           "name": "Chat",
           "when": "true",
           "icon": "$(comment)"
@@ -93,44 +93,44 @@
     },
     "viewsWelcome": [
       {
-        "view": "humanagent-mcp.chatSessions",
-        "contents": "No chat sessions found.\n[Create New Session](command:humanagent-mcp.createSession)\nTo learn more about how to use HumanAgent MCP [read our docs](https://github.com/nix1/HumanAgent-MCP)."
+        "view": "hitl-mcp.chatSessions",
+        "contents": "No chat sessions found.\n[Create New Session](command:hitl-mcp.createSession)\nTo learn more about how to use HITL MCP [read our docs](https://github.com/nix1/HITL-MCP)."
       }
     ],
     "menus": {
       "view/title": [
         {
-          "command": "humanagent-mcp.createSession",
-          "when": "view == humanagent-mcp.chatSessions",
+          "command": "hitl-mcp.createSession",
+          "when": "view == hitl-mcp.chatSessions",
           "group": "navigation"
         },
         {
-          "command": "humanagent-mcp.refreshSessions",
-          "when": "view == humanagent-mcp.chatSessions",
+          "command": "hitl-mcp.refreshSessions",
+          "when": "view == hitl-mcp.chatSessions",
           "group": "navigation"
         },
         {
-          "command": "humanagent-mcp.reportIssue",
-          "when": "view == humanagent-mcp.chatSessions",
+          "command": "hitl-mcp.reportIssue",
+          "when": "view == hitl-mcp.chatSessions",
           "group": "navigation"
         }
       ]
     },
     "mcpServerDefinitionProviders": [
       {
-        "id": "humanagent-mcp.server",
-        "label": "HumanAgent MCP Server"
+        "id": "hitl-mcp.server",
+        "label": "HITL MCP Server"
       }
     ],
     "configuration": {
-      "title": "HumanAgent MCP",
+      "title": "HITL MCP",
       "properties": {
-        "humanagent-mcp.logging.enabled": {
+        "hitl-mcp.logging.enabled": {
           "type": "boolean",
           "default": false,
           "description": "Enable logging to .vscode directory in workspace. Logs MCP server activity and debugging information."
         },
-        "humanagent-mcp.logging.level": {
+        "hitl-mcp.logging.level": {
           "type": "string",
           "enum": [
             "ERROR",
@@ -139,34 +139,34 @@
             "DEBUG"
           ],
           "default": "INFO",
-          "description": "Set the logging level for HumanAgent MCP server"
+          "description": "Set the logging level for HITL MCP server"
         },
-        "humanagent-mcp.notifications.enableSound": {
+        "hitl-mcp.notifications.enableSound": {
           "type": "boolean",
           "default": true,
           "description": "Enable audio notifications when AI agents send messages"
         },
-        "humanagent-mcp.notifications.enableFlashing": {
+        "hitl-mcp.notifications.enableFlashing": {
           "type": "boolean",
           "default": true,
           "description": "Enable visual flashing notifications when AI agents send messages"
         },
-        "humanagent-mcp.notifications.showStartup": {
+        "hitl-mcp.notifications.showStartup": {
           "type": "boolean",
           "default": true,
-          "description": "HumanAgent MCP extension is new - I would appreciate any issues or suggestions logged @"
+          "description": "HITL MCP extension is new - I would appreciate any issues or suggestions logged @"
         },
-        "humanagent-mcp.telegram.enabled": {
+        "hitl-mcp.telegram.enabled": {
           "type": "boolean",
           "default": false,
           "description": "Enable Telegram notifications for AI agent messages. Requires bot token and chat ID."
         },
-        "humanagent-mcp.telegram.botToken": {
+        "hitl-mcp.telegram.botToken": {
           "type": "string",
           "default": "",
           "description": "Telegram bot token from @BotFather. Required for Telegram integration."
         },
-        "humanagent-mcp.telegram.chatId": {
+        "hitl-mcp.telegram.chatId": {
           "type": "string",
           "default": "",
           "description": "Telegram chat ID where messages will be sent. Get this by messaging your bot and checking /getUpdates."

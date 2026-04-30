@@ -1,4 +1,4 @@
-# HumanAgent MCP Developer Guide
+# HITL MCP Developer Guide
 
 ## Architecture Overview
 
@@ -6,7 +6,7 @@ VS Code extension that runs an HTTP MCP server on port 3737. The server handles 
 
 - `/mcp` - Server-Sent Events for VS Code webview
 - `/mcp-tools` - MCP protocol for VS Code extension registration  
-- `/HumanAgent` - Web interface for browser access
+- `/HITL` - Web interface for browser access
 
 ## Core Components
 
@@ -33,7 +33,7 @@ VS Code extension that runs an HTTP MCP server on port 3737. The server handles 
 Sessions are tied to VS Code workspaces:
 - Session ID: `session-{uuid}` stored in VS Code global state
 - Workspace mapping: MD5 hash of workspace path
-- Tool overrides: Per-session tool configurations from `.vscode/HumanAgentOverride.json`
+- Tool overrides: Per-session tool configurations from `.vscode/HITLOverride.json`
 
 ## Tool Override Implementation
 
@@ -61,7 +61,7 @@ POST /response                    - Submit human responses
 
 **Build**: `npm run compile`
 **Debug**: F5 launches extension development host
-**Logs**: Check `HumanAgent-server.log` in system temp directory
+**Logs**: Check `HITL-server.log` in system temp directory
 
 ## Connection Architecture
 
@@ -69,13 +69,13 @@ The three-endpoint design prevents SSE conflicts:
 
 - VS Code webview connects to `/mcp` for real-time updates
 - VS Code extension uses `/mcp-tools` for MCP protocol communication
-- Browser clients access `/HumanAgent` for web interface
+- Browser clients access `/HITL` for web interface
 
 Each endpoint handles its specific protocol without interference.
 
 ## Message Flow
 
-1. AI assistant calls `HumanAgent_Chat` tool via MCP
+1. AI assistant calls `HITL_Chat` tool via MCP
 2. Server creates pending request and broadcasts to human interfaces
 3. Human responds through webview or browser
 4. Server resolves pending request and returns response to AI

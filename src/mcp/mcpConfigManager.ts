@@ -17,7 +17,7 @@ export interface McpConfiguration {
 
 export class McpConfigManager {
   private static readonly MCP_CONFIG_FILE = '.vscode/mcp.json';
-  private static readonly SERVER_NAME = 'humanagent-mcp';
+  private static readonly SERVER_NAME = 'hitl-mcp';
   private static readonly GLOBAL_CONFIG_KEY = 'mcp.servers';
   
   constructor(private workspaceRoot?: string, private extensionPath?: string, private port: number = 3737) {
@@ -183,19 +183,19 @@ export class McpConfigManager {
 
   private isRegisteredInWorkspace(): boolean {
     const currentWorkspaceRoot = this.getCurrentWorkspaceRoot();
-    console.log(`HumanAgent MCP: Checking workspace registration - workspaceRoot: ${currentWorkspaceRoot}`);
+    console.log(`HITL MCP: Checking workspace registration - workspaceRoot: ${currentWorkspaceRoot}`);
     
     if (!currentWorkspaceRoot) {
-      console.log('HumanAgent MCP: No workspace root available');
+      console.log('HITL MCP: No workspace root available');
       return false;
     }
 
     try {
       const mcpConfigPath = path.join(currentWorkspaceRoot, McpConfigManager.MCP_CONFIG_FILE);
-      console.log(`HumanAgent MCP: Checking MCP config at: ${mcpConfigPath}`);
+      console.log(`HITL MCP: Checking MCP config at: ${mcpConfigPath}`);
       
       if (!fs.existsSync(mcpConfigPath)) {
-        console.log('HumanAgent MCP: MCP config file does not exist');
+        console.log('HITL MCP: MCP config file does not exist');
         return false;
       }
 
@@ -203,8 +203,8 @@ export class McpConfigManager {
       const config: McpConfiguration = JSON.parse(configContent);
       
       const isRegistered = !!config.servers[McpConfigManager.SERVER_NAME];
-      console.log(`HumanAgent MCP: Server registration check - registered: ${isRegistered}`);
-      console.log(`HumanAgent MCP: Available servers: ${Object.keys(config.servers).join(', ')}`);
+      console.log(`HITL MCP: Server registration check - registered: ${isRegistered}`);
+      console.log(`HITL MCP: Available servers: ${Object.keys(config.servers).join(', ')}`);
 
       return isRegistered;
     } catch (error) {

@@ -25,7 +25,7 @@ export class ServerManager {
             host: '127.0.0.1',
             ...options
         };
-        this.pidFile = path.join(path.dirname(options.serverPath), '.humanagent-mcp-server.pid');
+        this.pidFile = path.join(path.dirname(options.serverPath), '.hitl-mcp-server.pid');
         this.logFile = options.logFile;
     }
 
@@ -166,7 +166,7 @@ export class ServerManager {
             
         } catch (error) {
             this.log(`Error ensuring server is running: ${error}`);
-            vscode.window.showErrorMessage(`Failed to start HumanAgent MCP Server: ${error}`);
+            vscode.window.showErrorMessage(`Failed to start HITL MCP Server: ${error}`);
             return false;
         }
     }

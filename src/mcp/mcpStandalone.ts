@@ -2,7 +2,7 @@
 
 /**
  * Standalone MCP Server Entry Point
- * This script runs the HumanAgent MCP server as a standalone process
+ * This script runs the HITL MCP server as a standalone process
  * that can be connected to by VS Code's MCP client
  */
 
@@ -23,7 +23,7 @@ class StandaloneMcpServer {
   async start(): Promise<void> {
     try {
       await this.server.start();
-      console.error('HumanAgent MCP Server started successfully (HTTP-only)'); // Use stderr for logging
+      console.error('HITL MCP Server started successfully (HTTP-only)'); // Use stderr for logging
 
       // Register signal handlers for graceful shutdown
       const shutdown = async (signal: string) => {
@@ -33,7 +33,7 @@ class StandaloneMcpServer {
       process.on('SIGINT', () => shutdown('SIGINT'));
       process.on('SIGTERM', () => shutdown('SIGTERM'));
     } catch (error) {
-      console.error('Failed to start HumanAgent MCP Server:', error);
+      console.error('Failed to start HITL MCP Server:', error);
       process.exit(1);
     }
   }
@@ -41,7 +41,7 @@ class StandaloneMcpServer {
   private async shutdown(): Promise<void> {
     try {
       await this.server.stop();
-      console.error('HumanAgent MCP Server stopped');
+      console.error('HITL MCP Server stopped');
       process.exit(0);
     } catch (error) {
       console.error('Error during shutdown:', error);

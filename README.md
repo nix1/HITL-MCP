@@ -1,6 +1,6 @@
-# HumanAgent MCP
+# HITL MCP
 
-> **Note:** This is a fork of [3DTek-xyz/HumanAgent-MCP](https://github.com/3DTek-xyz/HumanAgent-MCP) by [Ben Harper](https://github.com/3DTek-xyz). This version includes additional unit tests, telemetry removal, and CI integration.
+> **Note:** This is a fork of [3DTek-xyz/HITL-MCP](https://github.com/3DTek-xyz/HITL-MCP) by [Ben Harper](https://github.com/3DTek-xyz). This version includes additional unit tests, telemetry removal, and CI integration.
 
 Forces GitHub Copilot to chat with you before acting. Stops runaway agents, reduces wasted API calls, lets you manage multiple workspaces from one interface.
 
@@ -23,15 +23,15 @@ This version includes several improvements and modifications:
 ## Installation
 
 1. Install from a packaged `.vsix` bundle or build from source
-2. Copilot automatically gets the `HumanAgent_Chat` tool
+2. Copilot automatically gets the `HITL_Chat` tool
 3. Done — no configuration needed
 4. Recommend selecting **Create Override File** from the cog menu.
-   This creates `HumanAgentOverride.json` in `.vscode/` with useful customizations including "reminder" text appended to every interaction.
+   This creates `HITLOverride.json` in `.vscode/` with useful customizations including "reminder" text appended to every interaction.
 
 **Building from source:**
 ```bash
-git clone https://github.com/nix1/HumanAgent-MCP.git
-cd HumanAgent-MCP
+git clone https://github.com/nix1/HITL-MCP.git
+cd HITL-MCP
 npm install
 npm run compile
 npx @vscode/vsce package
@@ -42,7 +42,7 @@ npx @vscode/vsce package
 
 ### Basic Workflow
 
-1. **Ask Copilot to do something** — specify you'd like a reply through HumanAgent Chat
+1. **Ask Copilot to do something** — specify you'd like a reply through HITL Chat
 2. **Chat panel opens** — green dot = connected, shows Copilot's message
 3. **You respond** — type your answer, click Send (or use Quick Replies)
 4. **Copilot continues** — gets your response and proceeds with the task
@@ -69,7 +69,7 @@ npx @vscode/vsce package
 
 Open from cog menu → **Open Web View**
 
-Access all workspace chats in one browser tab at `http://localhost:3737/HumanAgent`
+Access all workspace chats in one browser tab at `http://localhost:3737/HITL`
 - See all conversations
 - Switch between workspaces
 - Append reminders to your responses
@@ -88,13 +88,13 @@ Captures and displays HTTP/HTTPS traffic from VS Code for debugging extensions, 
 > **Note:** Enabling the proxy affects all VS Code workspaces.
 
 **Proxy Rules:**
-## Tool Customization (HumanAgentOverride.json)
+## Tool Customization (HITLOverride.json)
 
-For advanced users, you can create a `.vscode/HumanAgentOverride.json` file in your workspace to fine-tune the AI's behavior. This is highly recommended for professional workflows.
+For advanced users, you can create a `.vscode/HITLOverride.json` file in your workspace to fine-tune the AI's behavior. This is highly recommended for professional workflows.
 
 ### Configuration Features
 
-- **Tool Overrides**: Change how the AI perceives the `HumanAgent_Chat` tool by providing a custom description. This is useful for giving the AI specific instructions on when or how to use the tool in your project.
+- **Tool Overrides**: Change how the AI perceives the `HITL_Chat` tool by providing a custom description. This is useful for giving the AI specific instructions on when or how to use the tool in your project.
 - **Message Reminders**: Automatically append a "reminder" string to every message you send back to the AI. This effectively "reminds" the AI of its role in every turn.
 - **Custom Quick Replies**: Replace the default "Yes Please Proceed" buttons with responses tailored to your team's workflow.
 
@@ -104,13 +104,13 @@ For advanced users, you can create a `.vscode/HumanAgentOverride.json` file in y
 {
   "version": "1.0.0",
   "tools": {
-    "HumanAgent_Chat": {
+    "HITL_Chat": {
       "description": "MANDATORY: Use this tool for all discussions and before any destructive actions."
     }
   },
   "messageSettings": {
     "toolSpecific": {
-      "HumanAgent_Chat": {
+      "HITL_Chat": {
         "autoAppendEnabled": true,
         "autoAppendText": "Remember to follow the project style guide and keep tests updated."
       }
@@ -162,7 +162,7 @@ Proxy Mode allows you to capture, inspect, and modify HTTP/HTTPS traffic origina
 
 **Copilot not using the tool:**
 - Tool registers automatically on startup
-- Try: "Use HumanAgent_Chat to discuss this with me"
+- Try: "Use HITL_Chat to discuss this with me"
 
 ---
 
@@ -183,7 +183,7 @@ npm run lint           # eslint
 
 ## Credits
 
-- **Original project:** [3DTek-xyz/HumanAgent-MCP](https://github.com/3DTek-xyz/HumanAgent-MCP) by [Ben Harper](https://github.com/3DTek-xyz)
+- **Original project:** [3DTek-xyz/HITL-MCP](https://github.com/3DTek-xyz/HITL-MCP) by [Ben Harper](https://github.com/3DTek-xyz)
 - **Original article:** [Stop the AI Chaos](https://medium.com/@harperbenwilliam/stop-the-ai-chaos-why-human-in-the-loop-beats-fully-autonomous-coding-agents-eeb0ae17fde9) on Medium
 - **License:** [GNU General Public License v3](LICENSE.md) (same as upstream)
 
@@ -193,6 +193,6 @@ See [README-Additional.md](README-Additional.md) for technical details and [Read
 
 ## Demo
 
-![HumanAgent MCP Extension Demo](high-res-demo.gif)
+![HITL MCP Extension Demo](high-res-demo.gif)
 
-*Complete demonstration of the HumanAgent MCP extension in action — showing real-time human-AI collaboration*
+*Complete demonstration of the HITL MCP extension in action — showing real-time human-AI collaboration*

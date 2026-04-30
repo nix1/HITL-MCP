@@ -33,7 +33,7 @@ export interface McpServerConfig {
   };
 }
 
-export interface HumanAgentSession {
+export interface HITLSession {
   id: string;
   name: string;
   isActive: boolean;
@@ -51,7 +51,7 @@ export interface McpTool {
   };
 }
 
-export interface HumanAgentChatToolParams {
+export interface HITLChatToolParams {
   message?: string;
   context?: string;
   sessionId?: string;
@@ -60,7 +60,7 @@ export interface HumanAgentChatToolParams {
   [key: string]: any; // Allow arbitrary fields for diverse tool schemas
 }
 
-export interface HumanAgentChatToolResult {
+export interface HITLChatToolResult {
   content: Array<{
     type: 'text';
     text: string;

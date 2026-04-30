@@ -33,12 +33,12 @@ export class ChatTreeProvider implements vscode.TreeDataProvider<ChatTreeItem> {
       const items: ChatTreeItem[] = [];
       
       const chatItem = new ChatTreeItem(
-        this.hasActiveChat ? 'HumanAgent Chat (Active)' : 'HumanAgent Chat',
+        this.hasActiveChat ? 'HITL Chat (Active)' : 'HITL Chat',
         'chat',
         vscode.TreeItemCollapsibleState.None,
         'chat',
         {
-          command: 'humanagent-mcp.openChat',
+          command: 'hitl-mcp.openChat',
           title: 'Open Chat',
           arguments: []
         }

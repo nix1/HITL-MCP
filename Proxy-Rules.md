@@ -4,7 +4,7 @@ Transform, redirect, or drop HTTP/HTTPS requests using powerful JSONata expressi
 
 ## What Are Proxy Rules?
 
-Proxy rules let you intercept and modify network traffic passing through the HumanAgent MCP proxy. You can:
+Proxy rules let you intercept and modify network traffic passing through the HITL MCP proxy. You can:
 - Redirect requests to different URLs
 - Transform request/response data with JSONata
 - Block specific requests
