@@ -901,6 +901,17 @@ export class McpServer extends EventEmitter {
     
     const pathLower = reqUrl.pathname.toLowerCase();
     
+    // EXTREME DEBUG LOGGING to stdout (visible in VS Code Output or Terminal)
+    console.log(`[MCP HTTP] ${req.method} ${req.url} -> pathname: ${reqUrl.pathname}, pathLower: ${pathLower}`);
+    this.debugLogger.log('HTTP', `Request: ${req.method} ${req.url} | Path: ${reqUrl.pathname}`);
+
+    if (pathLower === '/' || pathLower === '') {
+      this.debugLogger.log('HTTP', 'Redirecting / to /HITL');
+      res.writeHead(302, { 'Location': '/HITL' });
+      res.end();
+      return;
+    }
+
     if (pathLower === '/mcp') {
       // Main MCP protocol endpoint (webview SSE)
     } else if (pathLower === '/mcp-tools') {
@@ -915,7 +926,7 @@ export class McpServer extends EventEmitter {
       // Proxy server endpoints
       await this.handleProxyEndpoint(req, res);
       return;
-    } else if (pathLower === '/jsonata-rule-builder.html' || pathLower === '/rule-builder') {
+    } else if (pathLower === '/jsonata-rule-builder.html' || pathLower === '/rule-builder' || pathLower === '/builder') {
       // Visual rule builder interface
       await this.handleRuleBuilderInterface(req, res);
       return;
@@ -923,11 +934,12 @@ export class McpServer extends EventEmitter {
       // Session management, response, tools, reload, messages, and chat endpoints
       await this.handleSessionEndpoint(req, res);
       return;
-    } else if (req.url === '/shutdown' && req.method === 'POST') {
+    } else if (pathLower === '/shutdown' && req.method === 'POST') {
       // Server shutdown endpoint - allows any client to gracefully stop the server
       await this.handleShutdownEndpoint(req, res);
       return;
     } else {
+      console.log(`[MCP HTTP] 404 NOT FOUND for: ${pathLower}`);
       this.debugLogger.log('HTTP', `404 - Invalid endpoint: ${req.url}`);
       res.statusCode = 404;
       res.end('Not Found');
