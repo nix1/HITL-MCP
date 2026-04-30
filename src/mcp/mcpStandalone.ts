@@ -24,6 +24,14 @@ class StandaloneMcpServer {
     try {
       await this.server.start();
       console.error('HumanAgent MCP Server started successfully (HTTP-only)'); // Use stderr for logging
+
+      // Register signal handlers for graceful shutdown
+      const shutdown = async (signal: string) => {
+        console.error(`\nReceived ${signal}, shutting down gracefully...`);
+        await this.shutdown();
+      };
+      process.on('SIGINT', () => shutdown('SIGINT'));
+      process.on('SIGTERM', () => shutdown('SIGTERM'));
     } catch (error) {
       console.error('Failed to start HumanAgent MCP Server:', error);
       process.exit(1);
