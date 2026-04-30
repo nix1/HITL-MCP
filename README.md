@@ -14,7 +14,7 @@ This version (HITL-MCP) transforms the original human-chat concept into a produc
 |---------|---------|
 | 🧠 **Structured Tool APIs** | Replaced generic chat with specialized tools: `Request_Approval`, `Ask_Oracle`, and `Get_Next_Task`. Each has a strict JSON schema that forces the AI to provide context (Impact, Justification, etc.). |
 | ⚡ **Actionable Webview** | The UI now detects specific tool calls and renders **Approve/Deny** buttons. These buttons intelligently merge with your manual text input for seamless feedback. |
-| 🌐 **Multi-Workspace** | Manage multiple agents across different VS Code windows from a single browser interface at `localhost:3737/HITL`. |
+| 🌐 **Multi-Workspace** | Manage multiple agents across different VS Code windows. Each workspace session appears as a **separate tab** in the browser interface at `localhost:3737/HITL`. |
 | 🚫 **Zero Telemetry** | All GA4 and tracking code has been completely removed. Your data stays on your machine. |
 | 🧪 **Tested & Stable** | Added a comprehensive test suite for session management and tool data persistence. |
 | ⚙️ **Modernized CI** | Full GitHub Actions pipeline for linting, building, and automated testing. |
@@ -141,11 +141,25 @@ Proxy Mode allows you to capture, inspect, and modify HTTP/HTTPS traffic origina
 - **Redirection**: Send requests to a different endpoint (e.g., redirecting production API calls to a local mock server).
 - **Blocking**: Drop specific requests based on URL patterns.
 
-### How to Enable
+### JSONata Rule Builder
 
-1. **Install Certificate**: Use the Cog menu (⚙️) → **Install Proxy Certificate**. Follow your OS prompts to trust the CA.
-2. **Enable Proxy**: Cog menu (⚙️) → **Enable Proxy**.
-3. **Manage Rules**: Open the **Web View** and navigate to the **Proxy Logs** or **Proxy Rules** tab to create your own interceptors.
+For complex interceptors, use the visual **JSONata Rule Builder** at `http://localhost:3737/jsonata-rule-builder.html`. 
+- It allows you to build data transformation rules (e.g., "replace user prompts with X") using a GUI.
+- You can test your rules against sample JSON before applying them to the Proxy.
+
+See [docs/JSONata.md](docs/JSONata.md) for a deep dive.
+
+---
+
+## Documentation
+
+Detailed information is available in the `docs/` directory:
+
+- [🚀 Installation & Setup](docs/Technical-Overview.md)
+- [🏗️ Architecture & Development](docs/Architecture.md)
+- [🛡️ Proxy Mode & Interceptors](docs/Proxy.md)
+- [🎯 JSONata Rule Builder](docs/JSONata.md)
+- [⚙️ HITLOverride.json Customization](docs/Technical-Overview.md#tool-customization)
 
 ---
 
@@ -189,5 +203,4 @@ npm run lint           # eslint
 
 ## More Info
 
-See [README-Additional.md](README-Additional.md) for technical details and [ReadMeDev.md](ReadMeDev.md) for developer/architecture notes.
-
+Feel free to browse the [docs/](docs/) folder for more specific guides.
