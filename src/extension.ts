@@ -1,3 +1,7 @@
+import { registerAllCommands } from './commands';
+import { HITLMcpProvider } from './mcpProvider';
+import { checkForUpdates, performUpdate } from './updater';
+import { verifyCertificateInstallation } from './certificate';
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as net from 'net';
@@ -21,41 +25,6 @@ let updateStatusBarItem: vscode.StatusBarItem | undefined;
 let chatWebviewProvider: ChatWebviewProvider;
 
 // MCP Server Definition Provider for VS Code native MCP integration
-class HITLMcpProvider implements vscode.McpServerDefinitionProvider {
-    private _onDidChangeMcpServerDefinitions = new vscode.EventEmitter<void>();
-    readonly onDidChangeMcpServerDefinitions = this._onDidChangeMcpServerDefinitions.event;
-    private serverVersion: string = Date.now().toString();
-
-    constructor(private sessionId: string, private port: number) {}
-
-    provideMcpServerDefinitions(token: vscode.CancellationToken): vscode.ProviderResult<vscode.McpHttpServerDefinition[]> {
-        // Use separate endpoint for MCP tools to avoid SSE conflicts with webview
-        const serverUrl = `http://127.0.0.1:${this.port}/mcp-tools?sessionId=${this.sessionId}`;
-        const serverUri = vscode.Uri.parse(serverUrl);
-        const server = new vscode.McpHttpServerDefinition('HITLMCP', serverUri, {}, this.serverVersion);
-        console.log(`HITL MCP: Using separate MCP tools endpoint to avoid SSE conflicts (version: ${this.serverVersion})`);
-        return [server];
-    }
-
-    // Update version to force VS Code to refresh cached tool definitions
-    updateServerVersion(): void {
-        this.serverVersion = Date.now().toString();
-        console.log(`HITL MCP: Updated server version to ${this.serverVersion} to force tool cache refresh`);
-    }
-
-    // Method to fire the change event when override files are reloaded
-    notifyServerDefinitionsChanged(): void {
-        this.updateServerVersion(); // Force VS Code to refresh cached tool definitions
-        console.log('HITL MCP: Firing onDidChangeMcpServerDefinitions event');
-        this._onDidChangeMcpServerDefinitions.fire();
-    }
-
-    // Update session ID when it changes
-    updateSessionId(newSessionId: string): void {
-        this.sessionId = newSessionId;
-        this.notifyServerDefinitionsChanged();
-    }
-}
 
 let mcpProvider: HITLMcpProvider;
 
@@ -121,66 +90,6 @@ async function restoreSessionName(context: vscode.ExtensionContext, sessionId: s
  * Check for extension updates from VS Code Marketplace
  * @returns Promise<string | null> - Latest version if available, null otherwise
  */
-async function checkForUpdates(): Promise<string | null> {
-	try {
-		const currentVersion = vscode.extensions.getExtension('3DTek-xyz.hitl-mcp')?.packageJSON.version;
-		if (!currentVersion) {
-			console.log('[UpdateCheck] Could not determine current extension version');
-			return null;
-		}
-
-		console.log(`[UpdateCheck] Current version: ${currentVersion}`);
-
-		// Query VS Code Marketplace API for latest version
-		const response = await fetch('https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery', {
-			method: 'POST',
-			headers: {
-				'Accept': 'application/json;api-version=3.0-preview.1',
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({
-				filters: [{
-					criteria: [
-						{ filterType: 7, value: '3DTek-xyz.hitl-mcp' }
-					]
-				}],
-				flags: 914
-			})
-		});
-
-		if (!response.ok) {
-			console.log(`[UpdateCheck] Marketplace API returned ${response.status}`);
-			return null;
-		}
-
-		const data: any = await response.json();
-		const extension = data.results?.[0]?.extensions?.[0];
-		if (!extension) {
-			console.log('[UpdateCheck] Extension not found in marketplace response');
-			return null;
-		}
-
-		const latestVersion = extension.versions?.[0]?.version;
-		if (!latestVersion) {
-			console.log('[UpdateCheck] Could not parse latest version from marketplace');
-			return null;
-		}
-
-		console.log(`[UpdateCheck] Latest marketplace version: ${latestVersion}`);
-
-		// Compare versions (simple string comparison works for semantic versioning)
-		if (latestVersion > currentVersion) {
-			console.log(`[UpdateCheck] ✅ Update available: ${currentVersion} → ${latestVersion}`);
-			return latestVersion;
-		}
-
-		console.log('[UpdateCheck] Extension is up to date');
-		return null;
-	} catch (error) {
-		console.log(`[UpdateCheck] Failed to check for updates: ${error}`);
-		return null;
-	}
-}
 
 /**
  * Show update notification and handle user response
@@ -213,81 +122,12 @@ async function notifyUpdate(latestVersion: string, context: vscode.ExtensionCont
 /**
  * Perform the extension update
  */
-async function performUpdate() {
-	try {
-		// Trigger VS Code's built-in extension update
-		await vscode.commands.executeCommand('workbench.extensions.installExtension', '3DTek-xyz.hitl-mcp', {
-			installPreReleaseVersion: false
-		});
-		
-		// Hide status bar item after update starts
-		if (updateStatusBarItem) {
-			updateStatusBarItem.dispose();
-			updateStatusBarItem = undefined;
-		}
-		
-		vscode.window.showInformationMessage(
-			'HITL MCP is updating. You may need to reload VS Code after installation.',
-			'Reload Now'
-		).then(choice => {
-			if (choice === 'Reload Now') {
-				vscode.commands.executeCommand('workbench.action.reloadWindow');
-			}
-		});
-	} catch (error) {
-		vscode.window.showErrorMessage(`Failed to update extension: ${error}`);
-	}
-}
 
 /**
  * Verify that the proxy CA certificate is installed and working
  * Platform-independent approach: Checks if cert exists in system keychain
  * @returns Promise<boolean> - true if certificate is installed, false otherwise
  */
-async function verifyCertificateInstallation(): Promise<boolean> {
-	try {
-		console.log('[CertVerify] Checking certificate installation...');
-		
-		// Platform-specific certificate verification
-		return new Promise<boolean>((resolve) => {
-			let checkCommand: string;
-			
-			if (process.platform === 'darwin') {
-				// macOS: Check if certificate exists in System.keychain
-				checkCommand = 'security find-certificate -c "HITL Proxy CA" /Library/Keychains/System.keychain 2>&1';
-			} else if (process.platform === 'win32') {
-				// Windows: Check if certificate exists in Root store
-				checkCommand = 'certutil -verifystore Root "HITL Proxy CA" 2>&1';
-			} else {
-				// Linux: Check NSS database
-				checkCommand = 'certutil -L -d sql:$HOME/.pki/nssdb 2>&1 | grep "HITL Proxy CA"';
-			}
-			
-			// Execute check command
-			const { exec } = require('child_process');
-			exec(checkCommand, (error: any, stdout: string, stderr: string) => {
-				if (error) {
-					// Certificate not found
-					console.log(`[CertVerify] ❌ Certificate not installed (exit code: ${error.code})`);
-					resolve(false);
-					return;
-				}
-				
-				// Check if certificate name appears in output
-				if (stdout.includes('HITL Proxy CA')) {
-					console.log('[CertVerify] ✅ Certificate is installed in system keychain');
-					resolve(true);
-				} else {
-					console.log('[CertVerify] ❌ Certificate not found in system keychain');
-					resolve(false);
-				}
-			});
-		});
-	} catch (error) {
-		console.log(`[CertVerify] ❌ Verification failed: ${error}`);
-		return false;
-	}
-}
 
 export async function activate(context: vscode.ExtensionContext) {
 	console.log('HITL MCP extension activated!');
@@ -438,284 +278,14 @@ export async function activate(context: vscode.ExtensionContext) {
 	// Notify webview that registration check is complete
 	chatWebviewProvider.notifyRegistrationComplete();
 
-	// Register Commands
-	const openChatCommand = vscode.commands.registerCommand('hitl-mcp.openChat', () => {
-		// Focus the chat webview
-		vscode.commands.executeCommand('hitl-mcp.chatView.focus');
-	});
+	const commandDisposables = registerAllCommands(context, serverManager, chatWebviewProvider, chatTreeProvider, workspaceSessionId, SERVER_PORT);
 
-	const createSessionCommand = vscode.commands.registerCommand('hitl-mcp.createSession', async () => {
-		// In sessionless mode, just open the chat view
-		vscode.commands.executeCommand('hitl-mcp.chatView.focus');
-		vscode.window.showInformationMessage(`Chat interface ready for HITL communication`);
-	});
 
-	const refreshSessionsCommand = vscode.commands.registerCommand('hitl-mcp.refreshSessions', () => {
-		// In sessionless mode, just update the tree view
-		chatTreeProvider.refresh();
-	});
-
-	// Create dedicated status command
-	const showStatusCommand = vscode.commands.registerCommand('hitl-mcp.showStatus', async () => {
-		// Get detailed server status
-		const serverStatus = await serverManager.getServerStatus();
-		
-		let statusMessage = 
-			`HITL MCP Server Status:\n` +
-			`- Running: ${serverStatus.isRunning ? '✅' : '❌'}\n` +
-			`- PID: ${serverStatus.pid || 'N/A'}\n` +
-			`- Port: ${serverStatus.port}\n` +
-			`- Host: ${serverStatus.host}\n` +
-			`- Session: ${workspaceSessionId}\n` +
-			`- Registration: Native Provider ✅`;
-		
-		if (serverStatus.proxy) {
-			statusMessage += `\n\nProxy Server:\n` +
-				`- Running: ${serverStatus.proxy.running ? '✅' : '❌'}\n` +
-				`- Port: ${serverStatus.proxy.port || 'N/A'}`;
-		}
-		
-		vscode.window.showInformationMessage(statusMessage);
-	});
-
-	// Create server management commands
-	const startServerCommand = vscode.commands.registerCommand('hitl-mcp.startServer', async () => {
-		try {
-			const success = await serverManager.ensureServerRunning();
-			if (success) {
-				vscode.window.showInformationMessage('HITL MCP Server started successfully!');
-				// Notify webview to reset reconnection backoff and try immediately
-				chatWebviewProvider.notifyServerStarted();
-			} else {
-				vscode.window.showErrorMessage('Failed to start HITL MCP Server. Check the logs for details.');
-			}
-		} catch (error) {
-			vscode.window.showErrorMessage(`Failed to start server: ${error}`);
-		}
-	});
-
-	const stopServerCommand = vscode.commands.registerCommand('hitl-mcp.stopServer', async () => {
-		try {
-			// First try HTTP shutdown endpoint (works from any VS Code window or client)
-			try {
-				const http = require('http');
-				const options = {
-					hostname: '127.0.0.1',
-					port: SERVER_PORT,
-					path: '/shutdown',
-					method: 'POST',
-					timeout: 5000
-				};
-
-				await new Promise<void>((resolve, reject) => {
-					const req = http.request(options, (res: any) => {
-						let data = '';
-						res.on('data', (chunk: any) => data += chunk);
-						res.on('end', () => {
-							if (res.statusCode === 200) {
-								resolve();
-							} else {
-								reject(new Error(`HTTP ${res.statusCode}`));
-							}
-						});
-					});
-					req.on('error', reject);
-					req.on('timeout', () => {
-						req.destroy();
-						reject(new Error('Request timeout'));
-					});
-					req.end();
-				});
-
-				vscode.window.showInformationMessage('HITL MCP Server stopped successfully!');
-			} catch (httpError) {
-				// Fallback to PID kill if HTTP fails
-				console.log('HTTP shutdown failed, trying PID kill:', httpError);
-				const success = await serverManager.stopServer();
-				if (success) {
-					vscode.window.showInformationMessage('HITL MCP Server stopped successfully!');
-				} else {
-					vscode.window.showWarningMessage('Server may not have been running or failed to stop cleanly.');
-				}
-			}
-		} catch (error) {
-			vscode.window.showErrorMessage(`Failed to stop server: ${error}`);
-		}
-	});
-
-	const restartServerCommand = vscode.commands.registerCommand('hitl-mcp.restartServer', async () => {
-		try {
-			await serverManager.stopServer();
-			await new Promise(resolve => setTimeout(resolve, 1000)); // Brief pause
-			const success = await serverManager.ensureServerRunning();
-			if (success) {
-				// MCP server restarted silently
-				// Notify webview to reset reconnection backoff and try immediately
-				chatWebviewProvider.notifyServerStarted();
-			} else {
-				vscode.window.showErrorMessage('Failed to restart HITL MCP Server. Check the logs for details.');
-			}
-		} catch (error) {
-			vscode.window.showErrorMessage(`Failed to restart server: ${error}`);
-		}
-	});
-
-	// Configure MCP command removed - functionality moved to webview context menu
-
-	// Register extension update command
-	const updateExtensionCommand = vscode.commands.registerCommand('hitl-mcp.updateExtension', async () => {
-		await performUpdate();
-	});
-
-	// Register report issue command
-	const reportIssueCommand = vscode.commands.registerCommand('hitl-mcp.reportIssue', () => {
-		vscode.env.openExternal(vscode.Uri.parse('https://github.com/nix1/HITL-MCP/issues'));
-	});
-
-	// Register install proxy certificate command
-	const installProxyCertificateCommand = vscode.commands.registerCommand('hitl-mcp.installProxyCertificate', async () => {
-		try {
-			// Get certificate path from globalStorage
-			const certStoragePath = context.globalStorageUri.fsPath;
-			const certPath = path.join(certStoragePath, 'proxy-ca', 'ca.pem');
-			
-			// Check if certificate exists
-			if (!fs.existsSync(certPath)) {
-				vscode.window.showErrorMessage('Proxy certificate not found. Please start the proxy server first.');
-				return;
-			}
-			
-			// Show information message explaining what will happen
-			const proceed = await vscode.window.showInformationMessage(
-				'This will install the HITL Proxy CA certificate to your system keychain. This requires administrator privileges (sudo password).',
-				{ modal: true },
-				'Install'
-			);
-			
-			if (proceed !== 'Install') {
-				return;
-			}
-			
-			// Determine platform-specific command
-			let installCommand: string;
-			if (process.platform === 'darwin') {
-				// macOS
-				installCommand = `sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain "${certPath}"`;
-			} else if (process.platform === 'win32') {
-				// Windows
-				installCommand = `certutil -addstore Root "${certPath}"`;
-			} else {
-				// Linux
-				vscode.window.showWarningMessage(
-					'Certificate installation on Linux varies by distribution. Please install manually:\n' +
-					`sudo cp "${certPath}" /usr/local/share/ca-certificates/hitl-proxy-ca.crt && sudo update-ca-certificates`
-				);
-				return;
-			}
-			
-			// Execute installation command
-			const terminal = vscode.window.createTerminal('HITL: Install Certificate');
-			terminal.sendText(installCommand);
-			terminal.show();
-			
-			// Wait a moment, then verify installation
-			setTimeout(async () => {
-				const verified = await verifyCertificateInstallation();
-				if (verified) {
-					vscode.window.showInformationMessage('✅ Proxy certificate installed successfully! You can now enable the proxy.');
-				} else {
-					vscode.window.showWarningMessage('Certificate installation may have failed. Please check the terminal output.');
-				}
-			}, 3000);
-			
-		} catch (error) {
-			vscode.window.showErrorMessage(`Failed to install certificate: ${error}`);
-		}
-	});
-
-	// Register uninstall proxy certificate command
-	const uninstallProxyCertificateCommand = vscode.commands.registerCommand('hitl-mcp.uninstallProxyCertificate', async () => {
-		try {
-			// Check if proxy is currently enabled
-			const proxyConfig = vscode.workspace.getConfiguration().get('http.proxy');
-			if (proxyConfig) {
-				// Disable proxy first
-				const disableFirst = await vscode.window.showWarningMessage(
-					'Proxy is currently enabled. It will be disabled before uninstalling the certificate.',
-					{ modal: true },
-					'Continue'
-				);
-				
-				if (disableFirst !== 'Continue') {
-					return;
-				}
-				
-				await vscode.workspace.getConfiguration().update('http.proxy', undefined, vscode.ConfigurationTarget.Global);
-				// Proxy disabled silently
-			}
-			
-			// Show confirmation message
-			const proceed = await vscode.window.showWarningMessage(
-				'This will remove the HITL Proxy CA certificate from your system keychain. This requires administrator privileges (sudo password).',
-				{ modal: true },
-				'Uninstall'
-			);
-			
-			if (proceed !== 'Uninstall') {
-				return;
-			}
-			
-			// Determine platform-specific command
-			let uninstallCommand: string;
-			if (process.platform === 'darwin') {
-				// macOS
-				uninstallCommand = 'sudo security delete-certificate -c "HITL Proxy CA" /Library/Keychains/System.keychain';
-			} else if (process.platform === 'win32') {
-				// Windows
-				uninstallCommand = 'certutil -delstore Root "HITL Proxy CA"';
-			} else {
-				// Linux
-				vscode.window.showWarningMessage(
-					'Certificate uninstallation on Linux varies by distribution. Please remove manually:\n' +
-					'sudo rm /usr/local/share/ca-certificates/hitl-proxy-ca.crt && sudo update-ca-certificates'
-				);
-				return;
-			}
-			
-			// Execute uninstallation command
-			const terminal = vscode.window.createTerminal('HITL: Uninstall Certificate');
-			terminal.sendText(uninstallCommand);
-			terminal.show();
-			
-			setTimeout(() => {
-				vscode.window.showInformationMessage('Certificate uninstalled. You may need to restart VS Code for changes to take effect.');
-			}, 2000);
-			
-		} catch (error) {
-			vscode.window.showErrorMessage(`Failed to uninstall certificate: ${error}`);
-		}
-	});
-
-	// Register verify certificate command (internal use by enableProxy)
-	const verifyCertificateCommand = vscode.commands.registerCommand('hitl-mcp.verifyCertificate', async () => {
-		return await verifyCertificateInstallation();
-	});
 
 	// Add all disposables to context
 	context.subscriptions.push(
 		treeView,
-		openChatCommand,
-		createSessionCommand,
-		refreshSessionsCommand,
-		showStatusCommand,
-		startServerCommand,
-		stopServerCommand,
-		restartServerCommand,
-		updateExtensionCommand,
-		reportIssueCommand,
-		installProxyCertificateCommand,
-		uninstallProxyCertificateCommand,
-		verifyCertificateCommand
+		...commandDisposables
 	);
 
 	// Show welcome message

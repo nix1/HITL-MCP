@@ -475,17 +475,19 @@ export class McpServer extends EventEmitter {
       }
     };
 
-    // 3. Get_Next_Task (kolejka zadań)
-    const getNextTaskTool: McpTool = {
-      name: 'Get_Next_Task',
-      description: 'Synchronous Task Queue API. Always call this immediately after completing your current objective to fetch the next instruction. Do not stop execution or wait idly. This endpoint returns the next task instantly.',
+    // 3. Report_Completion (raportowanie zakończenia pracy i pobieranie kolejnego zadania)
+    const reportCompletionTool: McpTool = {
+      name: 'Report_Completion',
+      description: 'Call this tool IMMEDIATELY when you finish your current task to report what was accomplished and receive the next instruction. You MUST call this every time you complete a unit of work — do not stop or idle. Provide a clear summary of what was done so the human can review and assign the next task.',
       inputSchema: {
         type: 'object',
         properties: {
-          agent_state: { type: 'string', description: 'Current state of the agent (e.g., Idle, Completed task X)' },
-          current_context: { type: 'string', description: 'Brief summary of what was accomplished so far' }
+          summary: { type: 'string', description: 'Clear summary of what was accomplished in this task' },
+          status: { type: 'string', enum: ['completed', 'blocked', 'partial'], description: 'Whether the task was fully completed, blocked, or only partially done' },
+          artifacts: { type: 'string', description: 'Optional: list of files changed, tests passed, or other deliverables' },
+          next_suggestion: { type: 'string', description: 'Optional: what you think the next logical step should be' }
         },
-        required: ['agent_state']
+        required: ['summary', 'status']
       }
     };
 
@@ -504,11 +506,68 @@ export class McpServer extends EventEmitter {
       }
     };
 
+    // 5. Ask_Multiple_Choice (wybór wielokrotny)
+    const askMultipleChoiceTool: McpTool = {
+      name: 'Ask_Multiple_Choice',
+      description: 'Use this tool to present the human with a set of mutually exclusive options to choose from. This is ideal for asking for recommendations, picking the next architectural path, or deciding between multiple solutions.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          question: { type: 'string', description: 'The main question or context for the choices' },
+          options: {
+            type: 'array',
+            description: 'Array of options the human can choose from',
+            items: {
+              type: 'object',
+              properties: {
+                id: { type: 'string', description: 'Short identifier for the option (e.g. A, B, Option_1)' },
+                title: { type: 'string', description: 'Short title of the option' },
+                description: { type: 'string', description: 'Detailed explanation of this option' }
+              },
+              required: ['id', 'title']
+            }
+          },
+          recommendation: { type: 'string', description: 'Optional ID of the option you recommend (must match one of the option IDs)' }
+        },
+        required: ['question', 'options']
+      }
+    };
+
+    // 6. Request_Timed_Decision (decyzja z automatycznym wyborem po timeout)
+    const requestTimedDecisionTool: McpTool = {
+      name: 'Request_Timed_Decision',
+      description: 'Present the human with options that auto-select after a timeout. Use this when you need a decision but can safely proceed with a default if the human is away. The recommended option will be automatically selected after the specified timeout (default: 120 seconds).',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          question: { type: 'string', description: 'The question or context for the decision' },
+          options: {
+            type: 'array',
+            description: 'Array of options to choose from',
+            items: {
+              type: 'object',
+              properties: {
+                id: { type: 'string', description: 'Short identifier for the option (e.g. A, B)' },
+                title: { type: 'string', description: 'Short title of the option' },
+                description: { type: 'string', description: 'Detailed explanation of this option' }
+              },
+              required: ['id', 'title']
+            }
+          },
+          default_option_id: { type: 'string', description: 'ID of the option to auto-select on timeout (REQUIRED — must match one of the option IDs)' },
+          timeout_seconds: { type: 'number', description: 'Seconds to wait before auto-selecting the default option (default: 120, max: 600)' }
+        },
+        required: ['question', 'options', 'default_option_id']
+      }
+    };
+
     // Store default tools
     this.tools.set(humanAgentChatTool.name, humanAgentChatTool);
     this.tools.set(askOracleTool.name, askOracleTool);
-    this.tools.set(getNextTaskTool.name, getNextTaskTool);
+    this.tools.set(reportCompletionTool.name, reportCompletionTool);
     this.tools.set(requestApprovalTool.name, requestApprovalTool);
+    this.tools.set(askMultipleChoiceTool.name, askMultipleChoiceTool);
+    this.tools.set(requestTimedDecisionTool.name, requestTimedDecisionTool);
   }
 
   private initializeSessionTools(sessionId: string, workspacePath: string): void {
@@ -3270,6 +3329,62 @@ export class McpServer extends EventEmitter {
             padding: 8px 12px;
             background-color: var(--vscode-dropdown-background);
             border: 1px solid var(--vscode-border);
+        }
+
+        .multiple-choice-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 100%;
+            margin-bottom: 8px;
+        }
+
+        .option-card {
+            background: var(--vscode-editor-background, #1e1e1e);
+            border: 1px solid var(--vscode-panel-border, #80808059);
+            border-radius: 6px;
+            padding: 10px 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: left;
+            width: 100%;
+            color: var(--vscode-editor-foreground, #cccccc);
+        }
+
+        .option-card:hover {
+            border-color: var(--vscode-focusBorder, #007fd4);
+            background: var(--vscode-list-hoverBackground, #2a2d2e);
+        }
+
+        .option-card.recommended {
+            border: 2px solid var(--vscode-testing-iconPassed, #73c991);
+            background: #73c99120;
+        }
+
+        .option-card-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .option-card-desc {
+            font-size: 0.9em;
+            opacity: 0.8;
+            white-space: normal;
+            line-height: 1.4;
+        }
+
+        .rec-badge {
+            font-size: 9px;
+            text-transform: uppercase;
+            background: var(--vscode-testing-iconPassed, #73c991);
+            color: #1e1e1e;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-weight: bold;
+        }
             border-radius: 4px;
             color: var(--vscode-foreground);
             font-size: 13px;
@@ -3391,14 +3506,17 @@ export class McpServer extends EventEmitter {
                             <!-- Messages will be loaded dynamically -->
                         </div>
                         <div class="input-container">
-                            <textarea class="input-box" placeholder="Type your message..." data-session="${session.id}"></textarea>
-                            <select class="quick-replies" data-session="${session.id}">
-                                <option value="">Quick Replies...</option>
-                                ${session.quickReplyOptions.map((option: string) => 
-                                  `<option value="${this.escapeHtml(option)}">${this.escapeHtml(option)}</option>`
-                                ).join('\n                                ')}
-                            </select>
-                            <button class="send-button" data-session="${session.id}">Send</button>
+                            <div class="tool-options-container" id="tool-options-${session.id}"></div>
+                            <div style="display: flex; gap: 10px; width: 100%;">
+                                <textarea class="input-box" placeholder="Type your message..." data-session="${session.id}"></textarea>
+                                <select class="quick-replies" data-session="${session.id}">
+                                    <option value="">Quick Replies...</option>
+                                    ${session.quickReplyOptions.map((option: string) => 
+                                      `<option value="${this.escapeHtml(option)}">${this.escapeHtml(option)}</option>`
+                                    ).join('\n                                ')}
+                                </select>
+                                <button class="send-button" data-session="${session.id}">Send</button>
+                            </div>
                         </div>
                     </div>
                 `).join('')
@@ -3718,6 +3836,12 @@ export class McpServer extends EventEmitter {
             const textarea = document.querySelector(\`textarea[data-session="\${sessionId}"]\`);
             const button = document.querySelector(\`button[data-session="\${sessionId}"]\`);
             const container = textarea.closest('.input-container');
+            
+            // Clear options container
+            const optionsContainer = document.getElementById(\`tool-options-\${sessionId}\`);
+            if (optionsContainer) {
+                optionsContainer.innerHTML = '';
+            }
             
             // Collect any attached images
             const imagePreviews = container.querySelectorAll('.image-preview');
@@ -4294,12 +4418,15 @@ export class McpServer extends EventEmitter {
                     <!-- Messages will be loaded dynamically -->
                 </div>
                 <div class="input-container">
-                    <textarea class="input-box" placeholder="Type your message..." data-session="\${sessionId}"></textarea>
-                    <select class="quick-replies" data-session="\${sessionId}">
-                        <option value="">Quick Replies...</option>
-                        \${quickReplyOptionsHtml}
-                    </select>
-                    <button class="send-button" data-session="\${sessionId}">Send</button>
+                    <div class="tool-options-container" id="tool-options-\${sessionId}"></div>
+                    <div style="display: flex; gap: 10px; width: 100%;">
+                        <textarea class="input-box" placeholder="Type your message..." data-session="\${sessionId}"></textarea>
+                        <select class="quick-replies" data-session="\${sessionId}">
+                            <option value="">Quick Replies...</option>
+                            \${quickReplyOptionsHtml}
+                        </select>
+                        <button class="send-button" data-session="\${sessionId}">Send</button>
+                    </div>
                 </div>
             \`;
             
@@ -4474,6 +4601,80 @@ export class McpServer extends EventEmitter {
                                     waitingDiv.className = 'waiting-indicator';
                                     waitingDiv.textContent = '⏳ Waiting for your response...';
                                     messagesContainer.appendChild(waitingDiv);
+                                }
+                            }
+                            
+                            // Render special tools
+                            const optionsContainer = document.getElementById(\`tool-options-\${stateData.sessionId}\`);
+                            if (optionsContainer && (stateData.toolName === 'Ask_Multiple_Choice' || stateData.toolName === 'Request_Timed_Decision') && stateData.toolData && Array.isArray(stateData.toolData.options)) {
+                                optionsContainer.className = 'tool-options-container multiple-choice-container';
+                                const isTimedDecision = stateData.toolName === 'Request_Timed_Decision';
+                                const defaultOptionId = isTimedDecision ? stateData.toolData.default_option_id : stateData.toolData.recommendation;
+                                
+                                const optionsHtml = stateData.toolData.options.map(opt => {
+                                    const isDefault = opt.id === defaultOptionId;
+                                    const cardClass = isDefault ? 'option-card recommended' : 'option-card';
+                                    const badge = isDefault 
+                                        ? (isTimedDecision ? '<span class="rec-badge">⏱️ Auto-select</span>' : '<span class="rec-badge">Recommended</span>')
+                                        : '';
+                                    const sendText = escapeHtml(\`I select option \${opt.id}: \${opt.title}\`);
+                                    
+                                    return \`
+                                      <button class="\${cardClass}" onclick="sendMessage('\${stateData.sessionId}', '\${sendText}')">
+                                        <div class="option-card-title">
+                                          <span>\${escapeHtml(opt.id)}. \${escapeHtml(opt.title)}</span>
+                                          \${badge}
+                                        </div>
+                                        \${opt.description ? \`<div class="option-card-desc">\${escapeHtml(opt.description)}</div>\` : ''}
+                                      </button>
+                                    \`;
+                                }).join('');
+                                optionsContainer.innerHTML = optionsHtml;
+                                
+                                // Start countdown for timed decisions
+                                if (isTimedDecision && defaultOptionId) {
+                                    const timeoutSec = stateData.toolData.timeout_seconds || 120;
+                                    const defaultOpt = stateData.toolData.options.find(o => o.id === defaultOptionId);
+                                    const defaultTitle = defaultOpt ? defaultOpt.title : defaultOptionId;
+                                    
+                                    // Add countdown bar
+                                    const countdownHtml = \`
+                                      <div id="countdown-wrapper-\${stateData.sessionId}">
+                                        <div style="height:3px;background:var(--accent-color,#ff9800);border-radius:2px;margin-top:6px;transition:width 1s linear" id="countdown-bar-\${stateData.sessionId}"></div>
+                                        <div style="font-size:10px;opacity:0.7;text-align:right;margin-top:2px" id="countdown-text-\${stateData.sessionId}">\${timeoutSec}s — auto-selecting: \${escapeHtml(defaultTitle)}</div>
+                                      </div>
+                                    \`;
+                                    optionsContainer.insertAdjacentHTML('afterend', countdownHtml);
+                                    
+                                    let remaining = timeoutSec;
+                                    const countdownInterval = setInterval(() => {
+                                        remaining--;
+                                        const bar = document.getElementById(\`countdown-bar-\${stateData.sessionId}\`);
+                                        const text = document.getElementById(\`countdown-text-\${stateData.sessionId}\`);
+                                        if (remaining <= 0) {
+                                            clearInterval(countdownInterval);
+                                            const wrapper = document.getElementById(\`countdown-wrapper-\${stateData.sessionId}\`);
+                                            if (wrapper) wrapper.remove();
+                                            const autoText = \`I select option \${defaultOptionId}: \${defaultTitle} (auto-selected after timeout)\`;
+                                            sendMessage(stateData.sessionId, autoText);
+                                            return;
+                                        }
+                                        const pct = (remaining / timeoutSec) * 100;
+                                        if (bar) bar.style.width = pct + '%';
+                                        if (text) text.textContent = remaining + 's — auto-selecting: ' + escapeHtml(defaultTitle);
+                                    }, 1000);
+                                    
+                                    // Store interval for cleanup
+                                    window['__timedDecision_' + stateData.sessionId] = countdownInterval;
+                                }
+                            } else if (optionsContainer) {
+                                optionsContainer.innerHTML = '';
+                                // Cleanup any timed decision countdown
+                                const existingInterval = window['__timedDecision_' + stateData.sessionId];
+                                if (existingInterval) {
+                                    clearInterval(existingInterval);
+                                    const wrapper = document.getElementById(\`countdown-wrapper-\${stateData.sessionId}\`);
+                                    if (wrapper) wrapper.remove();
                                 }
                             }
                             
@@ -5394,7 +5595,7 @@ export class McpServer extends EventEmitter {
     
     this.debugLogger.log('MCP', `Available tools for session ${sessionId || 'default'}:`, Array.from(availableTools.keys()));
     
-    const validTools = ['HITL_Chat', 'Ask_Oracle', 'Get_Next_Task', 'Request_Approval'];
+    const validTools = ['HITL_Chat', 'Ask_Oracle', 'Report_Completion', 'Request_Approval', 'Ask_Multiple_Choice', 'Request_Timed_Decision'];
     if (validTools.includes(name) && availableTools.has(name)) {
       this.debugLogger.log('MCP', `Executing ${name} tool`);
       return await this.handleHITLChatTool(message.id, args, sessionId, name);
@@ -5446,9 +5647,15 @@ export class McpServer extends EventEmitter {
       displayMessage = `**Oracle Query**\n**Problem:** ${params.problem_description || 'Unknown'}`;
       if (params.attempted_solutions) displayMessage += `\n**Attempted:** ${params.attempted_solutions}`;
       if (params.error_logs) displayMessage += `\n**Logs:**\n\`\`\`\n${params.error_logs}\n\`\`\``;
-    } else if (activeToolName === 'Get_Next_Task') {
-      displayMessage = `**Task Request**\n**State:** ${params.agent_state || 'Idle'}`;
-      if (params.current_context) displayMessage += `\n**Context:** ${params.current_context}`;
+    } else if (activeToolName === 'Report_Completion') {
+      displayMessage = `**Task Completed**\n**Summary:** ${params.summary || 'No summary provided'}\n**Status:** ${params.status || 'completed'}`;
+      if (params.artifacts) displayMessage += `\n**Artifacts:** ${params.artifacts}`;
+      if (params.next_suggestion) displayMessage += `\n**Suggested next step:** ${params.next_suggestion}`;
+    } else if (activeToolName === 'Ask_Multiple_Choice') {
+      displayMessage = `**Decision Required**\n${params.question || 'Please choose an option:'}`;
+    } else if (activeToolName === 'Request_Timed_Decision') {
+      const timeout = params.timeout_seconds || 120;
+      displayMessage = `**Timed Decision (auto-selects in ${timeout}s)**\n${params.question || 'Please choose an option:'}`;
     } else {
       // Default HITL_Chat
       displayMessage = params.context ? `${params.context}\n\n${params.message}` : (params.message || 'No message provided');
