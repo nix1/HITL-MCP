@@ -7,10 +7,10 @@
   "icon": "HumanAgent_Icon_Square.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/3DTek-xyz/HumanAgent-MCP.git"
+    "url": "https://github.com/nix1/HumanAgent-MCP.git"
   },
   "bugs": {
-    "url": "https://github.com/3DTek-xyz/HumanAgent-MCP/issues"
+    "url": "https://github.com/nix1/HumanAgent-MCP/issues"
   },
   "engines": {
     "vscode": "^1.105.0"
@@ -94,7 +94,7 @@
     "viewsWelcome": [
       {
         "view": "humanagent-mcp.chatSessions",
-        "contents": "No chat sessions found.\n[Create New Session](command:humanagent-mcp.createSession)\nTo learn more about how to use HumanAgent MCP [read our docs](https://github.com/your-username/humanagent-mcp)."
+        "contents": "No chat sessions found.\n[Create New Session](command:humanagent-mcp.createSession)\nTo learn more about how to use HumanAgent MCP [read our docs](https://github.com/nix1/HumanAgent-MCP)."
       }
     ],
     "menus": {

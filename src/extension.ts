@@ -386,7 +386,7 @@ export async function activate(context: vscode.ExtensionContext) {
 					vscode.commands.executeCommand('humanagent-mcp.showStatus');
 					break;
 				case 'Report Issues':
-					vscode.env.openExternal(vscode.Uri.parse('https://github.com/3DTek-xyz/HumanAgent-MCP/issues'));
+					vscode.env.openExternal(vscode.Uri.parse('https://github.com/nix1/HumanAgent-MCP/issues'));
 					break;
 				// case 'Don\'t Show Again':
 				// 	notificationConfig.update('notifications.showStartup', false, vscode.ConfigurationTarget.Global);
@@ -569,7 +569,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	// Register report issue command
 	const reportIssueCommand = vscode.commands.registerCommand('humanagent-mcp.reportIssue', () => {
-		vscode.env.openExternal(vscode.Uri.parse('https://github.com/benharper/HumanAgent-MCP/issues'));
+		vscode.env.openExternal(vscode.Uri.parse('https://github.com/nix1/HumanAgent-MCP/issues'));
 	});
 
 	// Register install proxy certificate command

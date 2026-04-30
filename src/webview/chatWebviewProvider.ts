@@ -507,13 +507,13 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
           await this.openWebInterface();
           break;
         case 'openHelp':
-          vscode.env.openExternal(vscode.Uri.parse('https://github.com/3DTek-xyz/HumanAgent-MCP#readme'));
+          vscode.env.openExternal(vscode.Uri.parse('https://github.com/nix1/HumanAgent-MCP#readme'));
           break;
         case 'reportIssue':
-          vscode.env.openExternal(vscode.Uri.parse('https://github.com/3DTek-xyz/HumanAgent-MCP/issues/new'));
+          vscode.env.openExternal(vscode.Uri.parse('https://github.com/nix1/HumanAgent-MCP/issues/new'));
           break;
         case 'requestFeature':
-          vscode.env.openExternal(vscode.Uri.parse('https://github.com/3DTek-xyz/HumanAgent-MCP/issues/new'));
+          vscode.env.openExternal(vscode.Uri.parse('https://github.com/nix1/HumanAgent-MCP/issues/new'));
           break;
       }
       
