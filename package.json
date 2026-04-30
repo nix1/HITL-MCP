@@ -2,8 +2,8 @@
   "name": "hitl-mcp",
   "displayName": "HITL MCP",
   "description": "MCP server for chatting with a human agent",
-  "version": "0.0.22",
-  "publisher": "3DTek-xyz",
+  "version": "1.0.0",
+  "publisher": "nix1",
   "icon": "HumanAgent_Icon_Square.png",
   "repository": {
     "type": "git",

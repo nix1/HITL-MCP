@@ -12,12 +12,12 @@ This version (HITL-MCP) transforms the original human-chat concept into a produc
 
 | Feature | Details |
 |---------|---------|
-| 🧠 **Structured Tool APIs** | Replaced generic chat with specialized tools: `Request_Approval`, `Ask_Oracle`, and `Get_Next_Task`. Each has a strict JSON schema that forces the AI to provide context (Impact, Justification, etc.). |
-| ⚡ **Actionable Webview** | The UI now detects specific tool calls and renders **Approve/Deny** buttons. These buttons intelligently merge with your manual text input for seamless feedback. |
+| 🧠 **Structured Tool APIs** | Specialized tools for different interactions: `Request_Approval`, `Ask_Oracle`, and `Report_Completion` (rebranded for better agent reporting). Each uses a strict JSON schema. |
+| ⏱️ **Timed Decisions** | New `Request_Timed_Decision` tool allows agents to suggest a path that **auto-accepts** after a timeout (e.g. 2 minutes) if you're away. |
+| ⚡ **Modernized Webview** | Modular architecture built with **TypeScript & Webpack**. Features high-performance message rendering, real-time SSE connection, and interactive tool chips. |
 | 🌐 **Multi-Workspace** | Manage multiple agents across different VS Code windows. Each workspace session appears as a **separate tab** in the browser interface at `localhost:3737/HITL`. |
 | 🚫 **Zero Telemetry** | All GA4 and tracking code has been completely removed. Your data stays on your machine. |
-| 🧪 **Tested & Stable** | Added a comprehensive test suite for session management and tool data persistence. |
-| ⚙️ **Modernized CI** | Full GitHub Actions pipeline for linting, building, and automated testing. |
+| 🧪 **Tested & Stable** | Comprehensive test suite (24+ tests) covering tool schemas, session persistence, and core logic. |
 ---
 
 ## Installation
