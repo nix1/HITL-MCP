@@ -1,20 +1,20 @@
 # JSONata Rule Builder
 
-JSONata Rule Builder to wizualne narzędzie dostępne pod adresem `http://localhost:3737/jsonata-rule-builder.html`, które pozwala na tworzenie zaawansowanych reguł transformacji danych bez konieczności ręcznego pisania skomplikowanej składni JSONata.
+The JSONata Rule Builder is a visual tool available at `http://localhost:3737/jsonata-rule-builder.html` that allows you to create advanced data transformation rules without having to manually write complex JSONata syntax.
 
-## Czym jest JSONata?
-JSONata to język zapytań i transformacji dla danych JSON. W projekcie HITL-MCP jest wykorzystywany w trybie **Proxy** do modyfikowania zapytań i odpowiedzi "w locie".
+## What is JSONata?
+JSONata is a query and transformation language for JSON data. In the HITL-MCP project, it is used in **Proxy** mode to modify requests and responses "on the fly."
 
-## Do czego służy Rule Builder?
-Pozwala na:
-- **Wybór pola do transformacji**: np. treść wiadomości (`messages[].content`).
-- **Ustawienie warunków**: np. "zmień tylko jeśli nadawcą jest `user`".
-- **Definiowanie akcji**: np. "podmień tekst używając Regex" lub "dopisz instrukcję systemową".
-- **Testowanie**: Możesz wkleić przykładowy JSON i od razu zobaczyć wynik transformacji.
+## What is the Rule Builder for?
+It allows you to:
+- **Select a field for transformation**: e.g., message content (`messages[].content`).
+- **Set conditions**: e.g., "change only if the sender is `user`".
+- **Define actions**: e.g., "replace text using Regex" or "append a system instruction".
+- **Testing**: You can paste sample JSON and immediately see the transformation result.
 
-## Jak użyć wygenerowanej reguły?
-1. Skonfiguruj transformację w Builderze.
-2. Skopiuj wygenerowane wyrażenie JSONata.
-3. Wklej je do konfiguracji reguł Proxy (zakładka "Proxy Rules" w interfejsie przeglądarkowym).
+## How to use a generated rule?
+1. Configure the transformation in the Builder.
+2. Copy the generated JSONata expression.
+3. Paste it into the Proxy rules configuration ("Proxy Rules" tab in the web interface).
 
-Dzięki temu możesz np. automatycznie usuwać wrażliwe dane z logów lub wymuszać na modelu konkretny format odpowiedzi bez zmiany kodu samego rozszerzenia.
+This allows you to, for example, automatically remove sensitive data from logs or force the model into a specific response format without changing the extension's code.
