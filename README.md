@@ -88,13 +88,66 @@ Captures and displays HTTP/HTTPS traffic from VS Code for debugging extensions, 
 > **Note:** Enabling the proxy affects all VS Code workspaces.
 
 **Proxy Rules:**
-- Create rules to redirect, transform, or block requests
-- Use JSONata expressions for advanced transformations
-- See [Proxy-Rules.md](Proxy-Rules.md) for detailed documentation
+## Tool Customization (HumanAgentOverride.json)
 
-**Important:**
-- Certificate must be installed BEFORE enabling proxy
-- To disable: Cog menu → Disable Proxy
+For advanced users, you can create a `.vscode/HumanAgentOverride.json` file in your workspace to fine-tune the AI's behavior. This is highly recommended for professional workflows.
+
+### Configuration Features
+
+- **Tool Overrides**: Change how the AI perceives the `HumanAgent_Chat` tool by providing a custom description. This is useful for giving the AI specific instructions on when or how to use the tool in your project.
+- **Message Reminders**: Automatically append a "reminder" string to every message you send back to the AI. This effectively "reminds" the AI of its role in every turn.
+- **Custom Quick Replies**: Replace the default "Yes Please Proceed" buttons with responses tailored to your team's workflow.
+
+### Example Configuration
+
+```json
+{
+  "version": "1.0.0",
+  "tools": {
+    "HumanAgent_Chat": {
+      "description": "MANDATORY: Use this tool for all discussions and before any destructive actions."
+    }
+  },
+  "messageSettings": {
+    "toolSpecific": {
+      "HumanAgent_Chat": {
+        "autoAppendEnabled": true,
+        "autoAppendText": "Remember to follow the project style guide and keep tests updated."
+      }
+    }
+  },
+  "quickReplies": {
+    "enabled": true,
+    "options": [
+      "Ship it! 🚀",
+      "Needs more tests 🧪",
+      "Explain the trade-offs",
+      "Let's iterate on this"
+    ]
+  }
+}
+```
+
+---
+
+## Proxy Mode (Advanced)
+
+Proxy Mode allows you to capture, inspect, and modify HTTP/HTTPS traffic originating from VS Code. This is particularly useful for debugging extension behavior or intercepting AI agent requests.
+
+### Key Capabilities
+
+- **Traffic Inspection**: View full request/response payloads in the Web Interface.
+- **Request Transformation**: Use **JSONata** expressions to modify requests on the fly (e.g., changing system prompts or stripping headers).
+- **Redirection**: Send requests to a different endpoint (e.g., redirecting production API calls to a local mock server).
+- **Blocking**: Drop specific requests based on URL patterns.
+
+### How to Enable
+
+1. **Install Certificate**: Use the Cog menu (⚙️) → **Install Proxy Certificate**. Follow your OS prompts to trust the CA.
+2. **Enable Proxy**: Cog menu (⚙️) → **Enable Proxy**.
+3. **Manage Rules**: Open the **Web View** and navigate to the **Proxy Logs** or **Proxy Rules** tab to create your own interceptors.
+
+---
 
 ## Troubleshooting
 
@@ -111,10 +164,7 @@ Captures and displays HTTP/HTTPS traffic from VS Code for debugging extensions, 
 - Tool registers automatically on startup
 - Try: "Use HumanAgent_Chat to discuss this with me"
 
-**Proxy not working:**
-- Must install certificate first (cog menu → Install Proxy Certificate)
-- Then enable proxy (cog menu → Enable Proxy)
-- Certificate must be trusted in system keychain
+---
 
 ## Development
 
@@ -128,13 +178,14 @@ npm run lint           # eslint
 
 ## Privacy
 
-This fork contains **no telemetry**. The extension does not send any data to external services. Your conversations, usage patterns, and workspace information stay entirely on your machine.
+- **Extension Privacy**: This extension contains **no telemetry**. We do not collect or send your conversation data, workspace paths, or usage patterns to any external servers.
+- **Copilot Telemetry**: Please note that **GitHub Copilot itself** collects its own telemetry. While this extension does not add any tracking, it does not stop Copilot's native telemetry unless you specifically enable the "Block GitHub Copilot Telemetry" rule in **Proxy Mode**.
 
 ## Credits
 
 - **Original project:** [3DTek-xyz/HumanAgent-MCP](https://github.com/3DTek-xyz/HumanAgent-MCP) by [Ben Harper](https://github.com/3DTek-xyz)
 - **Original article:** [Stop the AI Chaos](https://medium.com/@harperbenwilliam/stop-the-ai-chaos-why-human-in-the-loop-beats-fully-autonomous-coding-agents-eeb0ae17fde9) on Medium
-- **License:** [Business Source License 1.1](LICENSE.md) (same as upstream)
+- **License:** [GNU General Public License v3](LICENSE.md) (same as upstream)
 
 ## More Info
 
