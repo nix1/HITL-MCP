@@ -1,5 +1,7 @@
 // HITL-MCP Webview Types
 
+export type AutoDecisionPolicy = 'manual' | 'timed' | 'instant';
+
 export interface AppState {
   sessionId: string;
   serverPort: string;
@@ -10,6 +12,8 @@ export interface AppState {
   currentServerStatus: ServerStatus | null;
   connectionInProgress: boolean;
   reconnectAttempts: number;
+  autoDecisionPolicy: AutoDecisionPolicy;
+  autoDecisionTimeout: number; // in seconds
 }
 
 export interface ServerStatus {

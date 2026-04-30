@@ -179,18 +179,30 @@ body {
 
 .chip {
   white-space: nowrap;
-  padding: 4px 10px;
+  padding: 4px 12px;
   background-color: var(--vscode-button-secondaryBackground);
   color: var(--vscode-button-secondaryForeground);
-  border: 1px solid var(--vscode-button-secondaryBackground);
-  border-radius: 12px;
+  border: 1px solid var(--vscode-button-border);
+  border-radius: 14px;
   font-size: 11px;
   cursor: pointer;
   transition: all 0.2s;
+  font-weight: 500;
+}
+
+.chip.primary {
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border-color: var(--vscode-button-background);
 }
 
 .chip:hover:not(:disabled) {
   background-color: var(--vscode-button-secondaryHoverBackground);
+  transform: translateY(-1px);
+}
+
+.chip.primary:hover:not(:disabled) {
+  background-color: var(--vscode-button-hoverBackground);
 }
 
 .chip:disabled {
@@ -202,7 +214,7 @@ body {
 .multiple-choice-container {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
   margin-bottom: 8px;
 }
@@ -210,35 +222,39 @@ body {
 .option-card {
   background: var(--vscode-editor-background);
   border: 1px solid var(--vscode-panel-border);
-  border-radius: 6px;
-  padding: 10px 12px;
+  border-radius: 8px;
+  padding: 12px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   text-align: left;
   width: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .option-card:hover {
-  border-color: var(--vscode-focusBorder);
+  border-color: var(--vscode-button-background);
   background: var(--vscode-list-hoverBackground);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
 .option-card.recommended {
-  border: 2px solid var(--vscode-testing-iconPassed);
-  background: color-mix(in srgb, var(--vscode-testing-iconPassed) 10%, transparent);
+  border: 2px solid var(--vscode-button-background);
+  background: color-mix(in srgb, var(--vscode-button-background) 5%, var(--vscode-editor-background));
 }
 
 .option-card-title {
-  font-weight: 600;
+  font-weight: bold;
+  font-size: 13px;
   margin-bottom: 4px;
-  color: var(--vscode-editor-foreground);
+  color: var(--vscode-foreground);
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
 .option-card-desc {
-  font-size: 0.9em;
+  font-size: 11px;
   opacity: 0.8;
   color: var(--vscode-descriptionForeground);
   white-space: normal;
@@ -248,27 +264,69 @@ body {
 .rec-badge {
   font-size: 9px;
   text-transform: uppercase;
-  background: var(--vscode-testing-iconPassed);
-  color: white;
-  padding: 2px 6px;
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  padding: 2px 8px;
   border-radius: 10px;
   font-weight: bold;
+  letter-spacing: 0.5px;
 }
 
-/* --- Countdown Timer (Timed Decision) --- */
+/* --- Countdown Timer (Autonomous Decision) --- */
+#countdownWrapper {
+  margin-top: 12px;
+  padding: 10px;
+  background: rgba(0,0,0,0.15);
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.countdown-bar-container {
+  height: 4px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 2px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
 .countdown-bar {
-  height: 3px;
-  background: var(--vscode-charts-orange);
+  height: 100%;
+  background: linear-gradient(90deg, var(--vscode-button-background), #409eff);
   border-radius: 2px;
   transition: width 1s linear;
-  margin-top: 6px;
 }
 
 .countdown-text {
-  font-size: 10px;
-  opacity: 0.7;
-  text-align: right;
-  margin-top: 2px;
+  font-size: 11px;
+  color: var(--vscode-foreground);
+  text-align: center;
+  opacity: 0.9;
+}
+
+.countdown-text strong {
+  color: var(--vscode-button-background);
+}
+
+/* Policy Selector in Header */
+.policy-selector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.policy-selector select {
+  background: var(--vscode-dropdown-background);
+  color: var(--vscode-dropdown-foreground);
+  border: 1px solid var(--vscode-dropdown-border);
+  border-radius: 4px;
+  padding: 2px 4px;
+  font-size: 11px;
+  outline: none;
+}
+
+.policy-selector select:focus {
+  border-color: var(--vscode-focusBorder);
 }
 
 /* --- Composer --- */

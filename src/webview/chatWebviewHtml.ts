@@ -86,6 +86,14 @@ export function getChatWebviewHtml(
           <div id="proxy-status-dot" class="status-dot"></div>
           <span id="proxy-status-text">Proxy</span>
         </div>
+        <div class="policy-selector">
+          <span>Policy:</span>
+          <select id="policySelector">
+            <option value="manual">Manual</option>
+            <option value="timed" selected>Auto (120s)</option>
+            <option value="instant">Instant</option>
+          </select>
+        </div>
       </div>
       <div class="control-buttons">
         <button class="icon-button" id="updateButton" style="display:none;" onclick="triggerUpdate()" title="Update available">📥</button>

@@ -567,7 +567,6 @@ export class McpServer extends EventEmitter {
     this.tools.set(reportCompletionTool.name, reportCompletionTool);
     this.tools.set(requestApprovalTool.name, requestApprovalTool);
     this.tools.set(askMultipleChoiceTool.name, askMultipleChoiceTool);
-    this.tools.set(requestTimedDecisionTool.name, requestTimedDecisionTool);
   }
 
   private initializeSessionTools(sessionId: string, workspacePath: string): void {

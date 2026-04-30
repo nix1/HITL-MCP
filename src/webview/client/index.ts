@@ -16,7 +16,9 @@ const state: AppState = {
   overrideFileExists: document.body.dataset.overrideExists === 'true',
   currentServerStatus: null,
   connectionInProgress: false,
-  reconnectAttempts: 0
+  reconnectAttempts: 0,
+  autoDecisionPolicy: 'timed',
+  autoDecisionTimeout: 120
 };
 
 // --- Initialize Managers ---
@@ -30,6 +32,18 @@ const network = new NetworkManager(
 
 const ui = new UIManager(state, network);
 const tools = new ToolManager(state, ui);
+
+// Policy selector listener
+const policySelector = document.getElementById('policySelector') as HTMLSelectElement;
+if (policySelector) {
+  policySelector.addEventListener('change', () => {
+    state.autoDecisionPolicy = policySelector.value as any;
+    console.log(`Policy changed to: ${state.autoDecisionPolicy}`);
+    if (state.autoDecisionPolicy === 'manual') {
+      tools.clearTimedDecisionTimer();
+    }
+  });
+}
 
 // --- Global Event Listeners ---
 window.addEventListener('message', (event) => {

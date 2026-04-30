@@ -21,6 +21,9 @@ export class ToolManager {
         this.renderChips(chipsContainer, data);
       }
       this.ui.playNotificationBeep();
+
+      // Automatically trigger policy-based auto-decision
+      this.evaluateAutoDecisionPolicy(data);
     } else {
       this.state.currentPendingRequestId = null;
       this.ui.setControlsEnabled(false);
@@ -28,11 +31,46 @@ export class ToolManager {
     }
   }
 
+  private evaluateAutoDecisionPolicy(data: RequestStateChange) {
+    if (this.state.autoDecisionPolicy === 'manual') return;
+
+    // Find the default option for this tool
+    const defaultAction = this.getDefaultActionForTool(data);
+    if (!defaultAction) return;
+
+    if (this.state.autoDecisionPolicy === 'instant') {
+      this.sendChip(defaultAction.text + ' (auto-selected instantly)');
+    } else if (this.state.autoDecisionPolicy === 'timed') {
+      this.startTimedDecisionCountdown(
+        this.state.autoDecisionTimeout || 120, 
+        defaultAction.text, 
+        defaultAction.label
+      );
+    }
+  }
+
+  private getDefaultActionForTool(data: RequestStateChange): { text: string, label: string } | null {
+    if (data.toolName === 'Request_Approval') {
+      return { text: '✅ Approved. Proceed with the action.', label: 'Approve' };
+    } else if (data.toolName === 'Report_Completion') {
+      return { text: 'Great work! Proceed to the next logical step.', label: 'Next Step' };
+    } else if (data.toolName === 'Ask_Oracle') {
+      return { text: 'Proceed with the most likely solution.', label: 'Try Best Solution' };
+    } else if (data.toolName === 'Ask_Multiple_Choice' && data.toolData?.options) {
+      const recId = data.toolData.recommendation;
+      const recOpt = data.toolData.options.find((o: any) => o.id === recId) || data.toolData.options[0];
+      return { text: `I select option ${recOpt.id}: ${recOpt.title}`, label: recOpt.title };
+    } else if (this.state.quickReplyOptions.length > 0) {
+      return { text: this.state.quickReplyOptions[0], label: this.state.quickReplyOptions[0] };
+    }
+    return null;
+  }
+
   private renderChips(container: HTMLElement, data: RequestStateChange) {
     if (data.toolName === 'Request_Approval') {
       container.innerHTML = `
-        <button class="chip" style="background:var(--vscode-testing-iconPassed);color:white;font-weight:bold" id="btn-approve">✅ Approve</button>
-        <button class="chip" style="background:var(--vscode-testing-iconFailed);color:white;font-weight:bold" id="btn-deny">❌ Deny</button>
+        <button class="chip primary" id="btn-approve">✅ Approve</button>
+        <button class="chip" id="btn-deny">❌ Deny</button>
         <button class="chip" id="btn-mod">📝 Approve with changes</button>
       `;
       this.attachChipEvents(container, {
@@ -42,7 +80,7 @@ export class ToolManager {
       });
     } else if (data.toolName === 'Report_Completion') {
       container.innerHTML = `
-        <button class="chip" id="btn-next">⏭️ Next step</button>
+        <button class="chip primary" id="btn-next">⏭️ Next step</button>
         <button class="chip" id="btn-refactor">🧹 Refactor</button>
         <button class="chip" id="btn-tests">🧪 Add tests</button>
         <button class="chip" id="btn-ux">✨ Polish UX</button>
@@ -59,7 +97,7 @@ export class ToolManager {
       });
     } else if (data.toolName === 'Ask_Oracle') {
       container.innerHTML = `
-        <button class="chip" id="btn-best">✅ Try best solution</button>
+        <button class="chip primary" id="btn-best">✅ Try best solution</button>
         <button class="chip" id="btn-ignore">⏭️ Ignore & continue</button>
         <button class="chip" id="btn-instead">🔄 Try instead...</button>
         <button class="chip" id="btn-fixed">🛠️ Fixed manually</button>
@@ -70,7 +108,7 @@ export class ToolManager {
         'btn-instead': 'Try a different approach: ',
         'btn-fixed': 'I have fixed the issue manually. Please proceed.'
       });
-    } else if ((data.toolName === 'Ask_Multiple_Choice' || data.toolName === 'Request_Timed_Decision') && data.toolData?.options) {
+    } else if (data.toolName === 'Ask_Multiple_Choice' && data.toolData?.options) {
       container.className = 'multiple-choice-container';
       this.renderMultipleChoice(container, data);
     } else {
@@ -80,15 +118,12 @@ export class ToolManager {
   }
 
   private renderMultipleChoice(container: HTMLElement, data: RequestStateChange) {
-    const isTimed = data.toolName === 'Request_Timed_Decision';
-    const defaultOptionId = isTimed ? data.toolData.default_option_id : data.toolData.recommendation;
-    let defaultOptionTitle = '';
-
+    const recommendationId = data.toolData.recommendation;
+    
     container.innerHTML = data.toolData.options.map((opt: any) => {
-      const isDefault = opt.id === defaultOptionId;
-      if (isDefault) defaultOptionTitle = opt.title;
-      const cardClass = isDefault ? 'option-card recommended' : 'option-card';
-      const badge = isDefault ? (isTimed ? '<span class="rec-badge">⏱️ Auto-select</span>' : '<span class="rec-badge">Recommended</span>') : '';
+      const isRecommended = opt.id === recommendationId;
+      const cardClass = isRecommended ? 'option-card recommended' : 'option-card';
+      const badge = isRecommended ? '<span class="rec-badge">Recommended</span>' : '';
       return `
         <button class="${cardClass}" id="opt-${opt.id}">
           <div class="option-card-title">
@@ -106,10 +141,6 @@ export class ToolManager {
         this.sendChip(`I select option ${opt.id}: ${opt.title}`);
       });
     });
-
-    if (isTimed && defaultOptionId && defaultOptionTitle) {
-      this.startTimedDecisionCountdown(data.toolData.timeout_seconds || 120, defaultOptionId, defaultOptionTitle);
-    }
   }
 
   private attachChipEvents(container: HTMLElement, mapping: Record<string, string>) {
@@ -121,7 +152,7 @@ export class ToolManager {
 
   private getDefaultChipsHtml() {
     return this.state.quickReplyOptions.map((option, index) =>
-      `<button class="chip" id="default-chip-${index}">${this.ui.escapeHtml(option)}</button>`
+      `<button class="chip ${index === 0 ? 'primary' : ''}" id="default-chip-${index}">${this.ui.escapeHtml(option)}</button>`
     ).join('');
   }
 
@@ -152,7 +183,7 @@ export class ToolManager {
     document.getElementById('countdownWrapper')?.remove();
   }
 
-  private startTimedDecisionCountdown(timeoutSeconds: number, defaultOptionId: string, defaultOptionTitle: string) {
+  private startTimedDecisionCountdown(timeoutSeconds: number, defaultActionText: string, label: string) {
     this.clearTimedDecisionTimer();
     const chipsContainer = document.getElementById('chipsContainer');
     if (!chipsContainer) return;
@@ -160,8 +191,10 @@ export class ToolManager {
     const countdownWrapper = document.createElement('div');
     countdownWrapper.id = 'countdownWrapper';
     countdownWrapper.innerHTML = `
-      <div class="countdown-bar" id="countdownBar" style="width:100%"></div>
-      <div class="countdown-text" id="countdownText">${timeoutSeconds}s — auto-selecting: ${this.ui.escapeHtml(defaultOptionTitle)}</div>
+      <div class="countdown-bar-container">
+        <div class="countdown-bar" id="countdownBar" style="width:100%"></div>
+      </div>
+      <div class="countdown-text" id="countdownText">${timeoutSeconds}s — auto-selecting: <strong>${this.ui.escapeHtml(label)}</strong></div>
     `;
     chipsContainer.parentElement?.insertBefore(countdownWrapper, chipsContainer.nextSibling);
 
@@ -176,11 +209,11 @@ export class ToolManager {
         return;
       }
       if (bar) bar.style.width = (remaining / timeoutSeconds) * 100 + '%';
-      if (text) text.textContent = `${remaining}s — auto-selecting: ${this.ui.escapeHtml(defaultOptionTitle)}`;
+      if (text) text.innerHTML = `${remaining}s — auto-selecting: <strong>${this.ui.escapeHtml(label)}</strong>`;
     }, 1000);
 
     this.timedDecisionTimeout = setTimeout(() => {
-      this.sendChip(`I select option ${defaultOptionId}: ${defaultOptionTitle} (auto-selected after timeout)`);
+      this.sendChip(defaultActionText + ' (auto-selected after timeout)');
     }, timeoutSeconds * 1000);
   }
 }
