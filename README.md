@@ -22,20 +22,13 @@ This version (HITL-MCP) transforms the original human-chat concept into a produc
 
 ## Installation
 
-1. Install from a packaged `.vsix` bundle or build from source
-2. Copilot automatically gets the `HITL_Chat` tool
-3. Done — no configuration needed
-4. Recommend selecting **Create Override File** from the cog menu.
-   This creates `HITLOverride.json` in `.vscode/` with useful customizations including "reminder" text appended to every interaction.
-
-**Building from source:**
+1. Download the latest `.vsix` from [Releases](https://github.com/nix1/HITL-MCP/releases).
+2. Open VS Code, go to Extensions (Ctrl+Shift+X), click the `...` menu, and select **Install from VSIX...**.
+3. Alternatively, build from source:
 ```bash
 git clone https://github.com/nix1/HITL-MCP.git
-cd HITL-MCP
-npm install
-npm run compile
-npx @vscode/vsce package
-# Then install the generated .vsix in VS Code
+cd HITL-MCP && npm install && npm run package
+# VSIX will be generated in the root directory
 ```
 
 ## How to Use

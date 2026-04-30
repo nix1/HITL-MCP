@@ -6,11 +6,6 @@ VS Code extension that runs an MCP (Model Context Protocol) server, providing an
 
 When an AI assistant calls the `HITL_Chat` tool, it opens a chat session where the human can respond in real-time. This gives you control over the AI workflow — you can approve actions, answer clarifying questions, or redirect the agent before it goes too far.
 
-## Demo
-
-![HITL MCP Extension Demo](high-res-demo.gif)
-
-*Complete demonstration of the HITL MCP extension in action - showing real-time human-AI collaboration*
 
 ## How it works
 
