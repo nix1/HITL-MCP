@@ -8,16 +8,16 @@ Forces GitHub Copilot to chat with you before acting. Stops runaway agents, redu
 
 ## Changes in this version
 
-This version includes several improvements and modifications:
+This version (HITL-MCP) transforms the original human-chat concept into a production-grade **Human-in-the-Loop** framework.
 
-| Change | Details |
-|--------|---------|
-| 🚫 **Telemetry removed** | Google Analytics 4 tracking has been completely removed. No usage data is sent anywhere. |
-| 🧪 **Unit tests added** | ChatManager has comprehensive unit tests (`npm run test:unit`). |
-| ⚙️ **CI pipeline** | GitHub Actions runs build, lint, and tests on every push and PR. |
-| 🛡️ **Graceful shutdown** | Standalone MCP server handles SIGINT/SIGTERM for clean process termination. |
-| 🔧 **Build fixes** | TypeScript config updated (`skipLibCheck`, DOM types) so `tsc` compiles without errors. |
-
+| Feature | Details |
+|---------|---------|
+| 🧠 **Structured Tool APIs** | Replaced generic chat with specialized tools: `Request_Approval`, `Ask_Oracle`, and `Get_Next_Task`. Each has a strict JSON schema that forces the AI to provide context (Impact, Justification, etc.). |
+| ⚡ **Actionable Webview** | The UI now detects specific tool calls and renders **Approve/Deny** buttons. These buttons intelligently merge with your manual text input for seamless feedback. |
+| 🌐 **Multi-Workspace** | Manage multiple agents across different VS Code windows from a single browser interface at `localhost:3737/HITL`. |
+| 🚫 **Zero Telemetry** | All GA4 and tracking code has been completely removed. Your data stays on your machine. |
+| 🧪 **Tested & Stable** | Added a comprehensive test suite for session management and tool data persistence. |
+| ⚙️ **Modernized CI** | Full GitHub Actions pipeline for linting, building, and automated testing. |
 ---
 
 ## Installation
