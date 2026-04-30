@@ -23,6 +23,14 @@ let SERVER_PORT: number; // Dynamic port: 3738 for dev, 3737 for production
 
 let updateStatusBarItem: vscode.StatusBarItem | undefined;
 let chatWebviewProvider: ChatWebviewProvider;
+let outputChannel: vscode.OutputChannel;
+
+export function log(message: string) {
+	if (outputChannel) {
+		outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] ${message}`);
+	}
+	console.log(message);
+}
 
 // MCP Server Definition Provider for VS Code native MCP integration
 
@@ -129,38 +137,39 @@ async function notifyUpdate(latestVersion: string, context: vscode.ExtensionCont
  * @returns Promise<boolean> - true if certificate is installed, false otherwise
  */
 
-export async function activate(context: vscode.ExtensionContext) {
-	console.log('HITL MCP extension activated!');
-
-
+export async function activate(extContext: vscode.ExtensionContext) {
+	// Initialize Output Channel
+	outputChannel = vscode.window.createOutputChannel('HITL MCP');
+	extContext.subscriptions.push(outputChannel);
+	log('HITL MCP extension activated!');
 
 	// Determine port based on extension mode (dev vs production)
-	SERVER_PORT = context.extensionMode === vscode.ExtensionMode.Development ? 3738 : 3737;
-	console.log(`Using port ${SERVER_PORT} (${context.extensionMode === vscode.ExtensionMode.Development ? 'development' : 'production'} mode);`);
+	SERVER_PORT = extContext.extensionMode === vscode.ExtensionMode.Development ? 3738 : 3737;
+	log(`Using port ${SERVER_PORT} (${extContext.extensionMode === vscode.ExtensionMode.Development ? 'development' : 'production'} mode);`);
 
 	// Generate or retrieve persistent workspace session ID
-	workspaceSessionId = getWorkspaceSessionId(context);
+	workspaceSessionId = getWorkspaceSessionId(extContext);
 
 	// Initialize MCP Configuration Manager
 	const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-	mcpConfigManager = new McpConfigManager(workspaceRoot, context.extensionPath, SERVER_PORT);
+	mcpConfigManager = new McpConfigManager(workspaceRoot, extContext.extensionPath, SERVER_PORT);
 
 	// Initialize and register VS Code native MCP provider
 	mcpProvider = new HITLMcpProvider(workspaceSessionId, SERVER_PORT);
-	context.subscriptions.push(vscode.lm.registerMcpServerDefinitionProvider('hitl-mcp.server', mcpProvider));
-	console.log('HITL MCP: Registered MCP server definition provider');
+	extContext.subscriptions.push(vscode.lm.registerMcpServerDefinitionProvider('hitl-mcp.server', mcpProvider));
+	log('HITL MCP: Registered MCP server definition provider');
 
 	// Fire startup event if override file exists to refresh VS Code tools
 	if (workspaceRoot) {
 		const overrideFilePath = path.join(workspaceRoot, '.vscode', 'HITLOverride.json');
 		if (require('fs').existsSync(overrideFilePath)) {
-			console.log('HITL MCP: Override file detected on startup, firing onDidChangeMcpServerDefinitions');
+			log('HITL MCP: Override file detected on startup, firing onDidChangeMcpServerDefinitions');
 			mcpProvider.notifyServerDefinitionsChanged();
 		}
 	}
 
 	// Initialize Server Manager
-	const serverPath = path.join(context.extensionPath, 'dist', 'mcpStandalone.js');
+	const serverPath = path.join(extContext.extensionPath, 'dist', 'mcpStandalone.js');
 	
 	// Check if logging is enabled via user settings
 	const config = vscode.workspace.getConfiguration('hitl-mcp');
@@ -168,7 +177,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	const loggingLevel = config.get<string>('logging.level', 'INFO');
 	
 	// Get certificate storage path from VS Code global storage
-	const certStoragePath = context.globalStorageUri.fsPath;
+	const certStoragePath = extContext.globalStorageUri.fsPath;
 	
 	const serverOptions: any = {
 		serverPath: serverPath,
@@ -179,13 +188,20 @@ export async function activate(context: vscode.ExtensionContext) {
 		certStoragePath: certStoragePath
 	};
 	
-	// Only add logFile if logging is enabled
-	if (loggingEnabled && vscode.workspace.workspaceFolders?.[0]) {
-		serverOptions.logFile = path.join(vscode.workspace.workspaceFolders[0].uri.fsPath, '.vscode', 'HITL-server.log');
-		console.log('HITL MCP: Logging enabled to .vscode directory');
+	// Enable logging by default to .vscode directory if it exists
+	if (vscode.workspace.workspaceFolders?.[0]) {
+		const workspacePath = vscode.workspace.workspaceFolders[0].uri.fsPath;
+		const vscodeDir = path.join(workspacePath, '.vscode');
+		if (!fs.existsSync(vscodeDir)) {
+			fs.mkdirSync(vscodeDir, { recursive: true });
+		}
+		serverOptions.logFile = path.join(vscodeDir, 'HITL-server.log');
+		log(`HITL MCP: Server logging enabled to ${serverOptions.logFile}`);
+		serverOptions.loggingEnabled = true;
+		serverOptions.loggingLevel = 'DEBUG';
 	}
 	
-	console.log(`HITL MCP: Certificate storage path: ${certStoragePath}`);
+	log(`HITL MCP: Certificate storage path: ${certStoragePath}`);
 	
 	serverManager = ServerManager.getInstance(serverOptions);
 
@@ -195,7 +211,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	// Check for extension updates on startup
 	checkForUpdates().then(latestVersion => {
 		if (latestVersion) {
-			notifyUpdate(latestVersion, context);
+			notifyUpdate(latestVersion, extContext);
 			
 			// Also send to webview if it's active
 			if (chatWebviewProvider) {
@@ -203,7 +219,7 @@ export async function activate(context: vscode.ExtensionContext) {
 			}
 		}
 	}).catch(error => {
-		console.log(`[UpdateCheck] Update check failed: ${error}`);
+		log(`[UpdateCheck] Update check failed: ${error}`);
 	});
 
 	// Show startup notification
@@ -215,8 +231,7 @@ export async function activate(context: vscode.ExtensionContext) {
 			'HITL MCP Extension is a new tool - please report any issues or suggestions on GitHub!',
 			'Open Chat',
 			'Show Status',
-			'Report Issues'
-			// 'Don\'t Show Again'
+			'Kill Server'
 		).then(selection => {
 			switch (selection) {
 				case 'Open Chat':
@@ -225,13 +240,9 @@ export async function activate(context: vscode.ExtensionContext) {
 				case 'Show Status':
 					vscode.commands.executeCommand('hitl-mcp.showStatus');
 					break;
-				case 'Report Issues':
-					vscode.env.openExternal(vscode.Uri.parse('https://github.com/nix1/HITL-MCP/issues'));
+				case 'Kill Server':
+					vscode.commands.executeCommand('hitl-mcp.killServer');
 					break;
-				// case 'Don\'t Show Again':
-				// 	notificationConfig.update('notifications.showStartup', false, vscode.ConfigurationTarget.Global);
-				// 	vscode.window.showInformationMessage('Startup notifications disabled. You can re-enable them in settings.');
-				// 	break;
 			}
 		});
 	}
@@ -239,9 +250,9 @@ export async function activate(context: vscode.ExtensionContext) {
 	// Restore the persisted session name after server is running (with retry)
 	setTimeout(async () => {
 		try {
-			await restoreSessionName(context, workspaceSessionId, SERVER_PORT);
+			await restoreSessionName(extContext, workspaceSessionId, SERVER_PORT);
 		} catch (error) {
-			console.log('HITL MCP: Could not restore session name on startup (server may not be ready yet):', error);
+			log(`HITL MCP: Could not restore session name on startup (server may not be ready yet): ${error}`);
 		}
 	}, 1000); // Wait 1 second for server to fully start
 
@@ -258,7 +269,7 @@ export async function activate(context: vscode.ExtensionContext) {
 			const serverStatus = await serverManager.getServerStatus();
 			chatTreeProvider.updateProxyStatus(serverStatus.proxy);
 		} catch (error) {
-			console.error('Failed to update proxy status:', error);
+			log(`Failed to update proxy status: ${error}`);
 		}
 	};
 	
@@ -267,23 +278,30 @@ export async function activate(context: vscode.ExtensionContext) {
 	
 	// Update every 10 seconds
 	const proxyStatusInterval = setInterval(updateProxyStatus, 10000);
-	context.subscriptions.push({ dispose: () => clearInterval(proxyStatusInterval) });
+	extContext.subscriptions.push({ dispose: () => clearInterval(proxyStatusInterval) });
 
 	// Initialize Chat Webview Provider (no internal server dependency)
-	chatWebviewProvider = new ChatWebviewProvider(context.extensionUri, null, mcpConfigManager, workspaceSessionId, context, mcpProvider, SERVER_PORT);
-	context.subscriptions.push(
+	chatWebviewProvider = new ChatWebviewProvider(extContext.extensionUri, null, mcpConfigManager, workspaceSessionId, extContext, mcpProvider, SERVER_PORT);
+	extContext.subscriptions.push(
 		vscode.window.registerWebviewViewProvider(ChatWebviewProvider.viewType, chatWebviewProvider)
 	);
 
 	// Notify webview that registration check is complete
 	chatWebviewProvider.notifyRegistrationComplete();
 
-	const commandDisposables = registerAllCommands(context, serverManager, chatWebviewProvider, chatTreeProvider, workspaceSessionId, SERVER_PORT);
+	// Register openOutput command
+	extContext.subscriptions.push(vscode.commands.registerCommand('hitl-mcp.openOutput', () => {
+		if (outputChannel) {
+			outputChannel.show();
+		}
+	}));
+
+	const commandDisposables = registerAllCommands(extContext, serverManager, chatWebviewProvider, chatTreeProvider, workspaceSessionId, SERVER_PORT);
 
 
 
 	// Add all disposables to context
-	context.subscriptions.push(
+	extContext.subscriptions.push(
 		treeView,
 		...commandDisposables
 	);

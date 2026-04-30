@@ -2,7 +2,7 @@
   "name": "hitl-mcp",
   "displayName": "HITL MCP",
   "description": "MCP server for chatting with a human agent",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "publisher": "nix1",
   "icon": "HumanAgent_Icon_Square.png",
   "repository": {

@@ -279,6 +279,24 @@ export function registerAllCommands(
 	const verifyCertificateCommand = vscode.commands.registerCommand('hitl-mcp.verifyCertificate', async () => {
 		return await verifyCertificateInstallation();
 	});
+	const killServerCommand = vscode.commands.registerCommand('hitl-mcp.killServer', async () => {
+		try {
+			vscode.window.showInformationMessage('Forcefully killing HITL MCP Server...');
+			const success = await serverManager.stopServer();
+			if (success) {
+				vscode.window.showInformationMessage('HITL MCP Server killed successfully!');
+			} else {
+				vscode.window.showWarningMessage('Failed to kill server (it may not be running).');
+			}
+		} catch (error) {
+			vscode.window.showErrorMessage(`Error killing server: ${error}`);
+		}
+	});
+
+	const showOutputCommand = vscode.commands.registerCommand('hitl-mcp.showOutput', () => {
+		vscode.commands.executeCommand('hitl-mcp.openOutput');
+	});
+
     return [
         openChatCommand,
         createSessionCommand,
@@ -287,6 +305,8 @@ export function registerAllCommands(
         startServerCommand,
         stopServerCommand,
         restartServerCommand,
+        killServerCommand,
+        showOutputCommand,
         updateExtensionCommand,
         reportIssueCommand,
         installProxyCertificateCommand,
