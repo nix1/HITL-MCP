@@ -1,4 +1,4 @@
-# HITL MCP
+# Human-in-the-Loop (HITL) MCP
 
 > **Note:** This is a fork of [3DTek-xyz/HITL-MCP](https://github.com/3DTek-xyz/HITL-MCP) by [Ben Harper](https://github.com/3DTek-xyz). This version includes additional unit tests, telemetry removal, and CI integration.
 
@@ -191,8 +191,3 @@ npm run lint           # eslint
 
 See [README-Additional.md](README-Additional.md) for technical details and [ReadMeDev.md](ReadMeDev.md) for developer/architecture notes.
 
-## Demo
-
-![HITL MCP Extension Demo](high-res-demo.gif)
-
-*Complete demonstration of the HITL MCP extension in action — showing real-time human-AI collaboration*
