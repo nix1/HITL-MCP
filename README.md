@@ -17,7 +17,8 @@ This version (HITL-MCP) transforms the original human-chat concept into a produc
 | ⚡ **Modernized Webview** | Modular architecture built with **TypeScript & Webpack**. Features high-performance message rendering, real-time SSE connection, and interactive tool chips. |
 | 🌐 **Multi-Workspace** | Manage multiple agents across different VS Code windows. Each workspace session appears as a **separate tab** in the browser interface at `localhost:3737/HITL`. |
 | 🚫 **Zero Telemetry** | All GA4 and tracking code has been completely removed. Your data stays on your machine. |
-| 🧪 **Tested & Stable** | Comprehensive test suite (24+ tests) covering tool schemas, session persistence, and core logic. |
+| 🧪 **Tested & Stable** | Comprehensive test suite covering tool schemas, session persistence, and core logic. |
+| 🏗️ **Modular Architecture** | Fully refactored service-oriented core. Monolithic 6000-line server split into decoupled modules: `McpHttpServer`, `ToolRegistry`, `ChatManager`, and `ProxyServer`. |
 ---
 
 ## Installation

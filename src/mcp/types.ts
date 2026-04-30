@@ -1,25 +1,13 @@
+import { EventEmitter } from 'events';
+import * as http from 'http';
+
 export interface McpMessage {
   id: string;
   type: 'request' | 'response' | 'notification';
   method?: string;
   params?: any;
   result?: any;
-  error?: {
-    code: number;
-    message: string;
-    data?: any;
-  };
-}
-
-export interface ChatMessage {
-  id: string;
-  sender: 'user' | 'agent';
-  content: string;
-  timestamp: Date;
-  type: 'text' | 'system';
-  source?: 'web' | 'vscode'; // Track message source for user messages
-  toolName?: string;         // Name of the tool used by the agent
-  toolData?: any;            // Structured data payload passed to the tool
+  error?: any;
 }
 
 export interface McpServerConfig {
@@ -33,31 +21,37 @@ export interface McpServerConfig {
   };
 }
 
+export interface ChatMessage {
+  id: string;
+  content: string;
+  sender: 'user' | 'agent';
+  timestamp: Date;
+  type: 'text' | 'image' | 'file';
+  source?: 'mcp' | 'vscode' | 'web';
+  toolName?: string;
+  toolData?: any;
+}
+
 export interface HITLSession {
   id: string;
-  name: string;
-  isActive: boolean;
-  lastActivity: Date;
+  workspacePath?: string;
   messages: ChatMessage[];
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface McpTool {
   name: string;
   description: string;
-  inputSchema: {
-    type: string;
-    properties: Record<string, any>;
-    required?: string[];
-  };
+  inputSchema: any;
 }
 
 export interface HITLChatToolParams {
-  message?: string;
+  message: string;
   context?: string;
-  sessionId?: string;
   priority?: 'low' | 'normal' | 'high' | 'urgent';
-  timeout?: number;
-  [key: string]: any; // Allow arbitrary fields for diverse tool schemas
+  sessionId?: string;
+  [key: string]: any;
 }
 
 export interface HITLChatToolResult {
@@ -65,4 +59,45 @@ export interface HITLChatToolResult {
     type: 'text';
     text: string;
   }>;
+}
+
+export interface Memento {
+  get<T>(key: string): T | undefined;
+  get<T>(key: string, defaultValue: T): T;
+  update(key: string, value: any): Thenable<void>;
+}
+
+export interface IMcpServer {
+  handleMessage(message: any): Promise<any>;
+  registerSession(sessionId: string, workspacePath?: string, overrideData?: any): void;
+  unregisterSession(sessionId: string): void;
+  getActiveSessions(): string[];
+  getSessionState(sessionId: string): any;
+  getMessages(sessionId: string): any[];
+  sendToWebInterface(eventType: string, data: any): void;
+  sendToSession(sessionId: string, eventType: string, data: any): void;
+  sendToSessionAndWeb(sessionId: string, eventType: string, data: any): void;
+  
+  // Proxy management
+  getProxyRules(): Promise<any[]>;
+  initializeDefaultRules(): Promise<void>;
+  updateProxyRules(rules: any[]): Promise<void>;
+  addProxyRule(name: string, pattern: string, redirect?: string, jsonata?: string, enabled?: boolean, dropRequest?: boolean, dropStatusCode?: number, scope?: string, sessionId?: string, sessionName?: string, workspaceFolder?: string, debug?: boolean): Promise<string>;
+  updateProxyRule(ruleId: string, updates: any): Promise<boolean>;
+  deleteProxyRule(ruleId: string): Promise<boolean>;
+  handleProxyLogUpdate(logEntry: any): void;
+  
+  stop(): Promise<void>;
+  
+  // Property accessors needed by HTTP server
+  readonly port: number;
+  readonly debugLogger: any;
+  readonly chatManager: any;
+  readonly proxyServer: any;
+  readonly globalStorage?: Memento;
+  readonly vscodeSessionMapping: Map<string, { sessionId: string, workspacePath?: string }>;
+  readonly sessionWorkspacePaths: Map<string, string>;
+  readonly sessionNames: Map<string, string>;
+  readonly sessionMessageSettings: Map<string, any>;
+  readonly activeSessions: Set<string>;
 }
