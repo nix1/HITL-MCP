@@ -14,7 +14,7 @@ Proxy rules let you intercept and modify network traffic passing through the Hum
 
 Two default example rules are created on first install (both disabled):
 1. **Karen Personality** - Adds personality to Copilot responses (see Use Cases below)
-- This is the main reason i added the proxy - it enables you to completly replace the horrid system prompt used by copilot - the one that makes it run of and ruin everything.
+- This provides an example of how the proxy can be used to modify or override the default system prompts used by AI assistants, allowing for more specific behavior control.
 2. **Block GitHub Copilot Telemetry** - Blocks telemetry requests
 
 You can enable these examples or create your own custom rules.

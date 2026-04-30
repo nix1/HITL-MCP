@@ -1,14 +1,14 @@
-# HumanAgent MCP (Fork)
+# HumanAgent MCP
 
-> **This is a maintained fork of [3DTek-xyz/HumanAgent-MCP](https://github.com/3DTek-xyz/HumanAgent-MCP)**, the original project by [Ben Harper](https://github.com/3DTek-xyz). Full credit for the concept and initial implementation goes to the original author.
+> **Note:** This is a fork of [3DTek-xyz/HumanAgent-MCP](https://github.com/3DTek-xyz/HumanAgent-MCP) by [Ben Harper](https://github.com/3DTek-xyz). This version includes additional unit tests, telemetry removal, and CI integration.
 
 Forces GitHub Copilot to chat with you before acting. Stops runaway agents, reduces wasted API calls, lets you manage multiple workspaces from one interface.
 
 ---
 
-## Fork Differences
+## Changes in this version
 
-This fork makes the following changes from the [upstream project](https://github.com/3DTek-xyz/HumanAgent-MCP):
+This version includes several improvements and modifications:
 
 | Change | Details |
 |--------|---------|
@@ -17,9 +17,6 @@ This fork makes the following changes from the [upstream project](https://github
 | ⚙️ **CI pipeline** | GitHub Actions runs build, lint, and tests on every push and PR. |
 | 🛡️ **Graceful shutdown** | Standalone MCP server handles SIGINT/SIGTERM for clean process termination. |
 | 🔧 **Build fixes** | TypeScript config updated (`skipLibCheck`, DOM types) so `tsc` compiles without errors. |
-| 🔗 **URL corrections** | All issue/help links point to this fork instead of stale upstream URLs. |
-
-The upstream project is [looking for a new maintainer](https://github.com/3DTek-xyz/HumanAgent-MCP#project-status). This fork aims to keep the extension functional and well-tested.
 
 ---
 
@@ -97,7 +94,6 @@ Captures and displays HTTP/HTTPS traffic from VS Code for debugging extensions, 
 
 **Important:**
 - Certificate must be installed BEFORE enabling proxy
-- Only captures traffic when enabled
 - To disable: Cog menu → Disable Proxy
 
 ## Troubleshooting
@@ -123,20 +119,11 @@ Captures and displays HTTP/HTTPS traffic from VS Code for debugging extensions, 
 ## Development
 
 ```bash
-# Install dependencies
 npm install
-
-# Build
-npm run compile
-
-# Run unit tests
-npm run test:unit
-
-# Lint
-npm run lint
-
-# Debug in VS Code
-# Press F5 — dev mode uses port 3738, production uses 3737
+npm run compile        # webpack build
+npm run test:unit      # unit tests (18 tests, no VS Code required)
+npm run lint           # eslint
+# Press F5 in VS Code to debug — dev mode uses port 3738
 ```
 
 ## Privacy
@@ -151,7 +138,7 @@ This fork contains **no telemetry**. The extension does not send any data to ext
 
 ## More Info
 
-See [README-Additional.md](README-Additional.md) for technical details.
+See [README-Additional.md](README-Additional.md) for technical details and [ReadMeDev.md](ReadMeDev.md) for developer/architecture notes.
 
 ## Demo
 

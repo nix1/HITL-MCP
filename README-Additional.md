@@ -1,28 +1,16 @@
-# HumanAgent MCP
+# HumanAgent MCP — Technical Overview
 
-VS Code extension that creates an MCP server for AI assistants to chat with humans.
+VS Code extension that runs an MCP (Model Context Protocol) server, providing an `HumanAgent_Chat` tool that forces AI assistants to communicate through a human agent interface instead of acting autonomously.
 
-## Project Status
+## What it does
 
-This project is unmaintained and is looking for a new maintainer.
-
-The core problem still matters: giving users a way to rein in overly autonomous Copilot behavior and enforce a more deliberate human-in-the-loop workflow. I no longer use VS Code or GitHub Copilot regularly, so I am not actively maintaining or validating this extension.
-
-You can still install from a `.vsix`, build it from source, or fork it if it is useful to you.
+When an AI assistant calls the `HumanAgent_Chat` tool, it opens a chat session where the human can respond in real-time. This gives you control over the AI workflow — you can approve actions, answer clarifying questions, or redirect the agent before it goes too far.
 
 ## Demo
 
 ![HumanAgent MCP Extension Demo](high-res-demo.gif)
 
 *Complete demonstration of the HumanAgent MCP extension in action - showing real-time human-AI collaboration*
-
-## What it does
-
-This extension provides a `HumanAgent_Chat` MCP tool that forces AI assistants to communicate through a human agent instead of giving direct responses. When an AI uses this tool, it opens a chat session where humans can respond in real-time.
-
-## Why
-
-The AI Agent is encouraged to discuss with you before running off to do its own thing - if its part way through iterating through on a problem it can stop and ask you a question - it reduces requests considerably, helps avoid runaway agent, allows you to manage multiple VSCode agents working in multiple workspaces from one web page. Allows you to append useful reminders to each response.   
 
 ## How it works
 
@@ -41,15 +29,14 @@ The AI Agent is encouraged to discuss with you before running off to do its own 
 
 ## Chat Interfaces
 
-**VS Code Panel**: Dockable chat interface within VS Code
+**VS Code Panel**: Dockable chat interface within VS Code  
 **Browser Interface**: Available at `http://localhost:3737/HumanAgent`
 
 Both interfaces show the same chat sessions and message history.
 
 ## Tool Customization
 
-Create `.vscode/HumanAgentOverride.json` to customize tool descriptions and message behavior:
-THIS IS SUPER HELPFUL - NOTE THE LAST PART WHERE YOU CAN APEND A MESSAGE TO THE END OF EVERY REPLY!
+Create `.vscode/HumanAgentOverride.json` to customize tool descriptions and message behavior. This is particularly useful for appending a reminder to every response so the AI stays in the loop:
 
 ```json
 {
@@ -69,7 +56,7 @@ THIS IS SUPER HELPFUL - NOTE THE LAST PART WHERE YOU CAN APEND A MESSAGE TO THE 
     "toolSpecific": {
       "HumanAgent_Chat": {
         "autoAppendEnabled": true,
-        "autoAppendText": "No need to confirm this next part - Remember allways to reply here in this tool unless user suggests otherwise"
+        "autoAppendText": "Remember to always reply here in this tool unless user suggests otherwise"
       }
     }
   }
