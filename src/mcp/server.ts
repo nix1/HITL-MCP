@@ -899,25 +899,27 @@ export class McpServer extends EventEmitter {
     // Parse URL to handle query parameters
     const reqUrl = new URL(req.url!, `http://${req.headers.host}`);
     
-    if (reqUrl.pathname === '/mcp') {
+    const pathLower = reqUrl.pathname.toLowerCase();
+    
+    if (pathLower === '/mcp') {
       // Main MCP protocol endpoint (webview SSE)
-    } else if (reqUrl.pathname === '/mcp-tools') {
+    } else if (pathLower === '/mcp-tools') {
       // MCP tools endpoint (extension only, no SSE conflicts)
       await this.handleMcpToolsEndpoint(req, res, reqUrl);
       return;
-    } else if (req.url === '/HITL') {
+    } else if (pathLower === '/hitl' || pathLower === '/hitl/') {
       // Web interface for multi-session chat
       await this.handleWebInterface(req, res);
       return;
-    } else if (req.url?.startsWith('/proxy')) {
+    } else if (pathLower.startsWith('/proxy')) {
       // Proxy server endpoints
       await this.handleProxyEndpoint(req, res);
       return;
-    } else if (req.url === '/jsonata-rule-builder.html') {
+    } else if (pathLower === '/jsonata-rule-builder.html' || pathLower === '/rule-builder') {
       // Visual rule builder interface
       await this.handleRuleBuilderInterface(req, res);
       return;
-    } else if (req.url?.startsWith('/sessions') || req.url === '/response' || req.url?.startsWith('/tools') || req.url?.startsWith('/debug') || req.url === '/reload' || req.url?.startsWith('/messages/')) {
+    } else if (pathLower.startsWith('/sessions') || pathLower === '/response' || pathLower.startsWith('/tools') || pathLower.startsWith('/debug') || pathLower === '/reload' || pathLower.startsWith('/messages/')) {
       // Session management, response, tools, reload, messages, and chat endpoints
       await this.handleSessionEndpoint(req, res);
       return;
@@ -3499,7 +3501,22 @@ export class McpServer extends EventEmitter {
         
         <div class="content">
             ${sessions.length === 0 ? 
-                '<div class="no-sessions" data-session="no-sessions" style="display: none;">No active sessions. Start a chat in VS Code to see sessions here.</div>' :
+                `
+                <div class="no-sessions-welcome" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; padding: 40px; color: #888;">
+                    <div style="font-size: 48px; margin-bottom: 20px;">🌐</div>
+                    <h2 style="color: #ccc; margin-bottom: 10px;">Multi-Workspace Dashboard</h2>
+                    <p style="max-width: 500px; line-height: 1.6; margin-bottom: 20px;">
+                        This dashboard allows you to manage multiple HITL sessions across all your open VS Code windows in one place.
+                    </p>
+                    <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 8px; border: 1px dashed #444;">
+                        <p style="font-size: 14px; color: #aaa;">
+                            <strong>No active sessions found.</strong><br>
+                            To see something here, start a task with an Agent in any VS Code window.<br>
+                            Sessions will appear as tabs at the top.
+                        </p>
+                    </div>
+                </div>
+                ` :
                 sessions.map((session, index) => `
                     <div class="chat-container ${index === 0 ? 'active' : ''}" data-session="${session.id}">
                         <div class="messages" id="messages-${session.id}">
