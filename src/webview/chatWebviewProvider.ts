@@ -646,15 +646,12 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
       }
     }
 
-    // Messages will be loaded dynamically from server via JavaScript
-    const messagesHtml = '<div id="messages-loading">Loading conversation history...</div>';
+    // Get the URI for marked.js
+    const markedJsUri = webview.asWebviewUri(vscode.Uri.file(
+      path.join(this.extensionPath, 'node_modules', 'marked', 'lib', 'marked.umd.js')
+    ));
 
     const hasPendingResponse = this.currentRequestId ? 'waiting' : '';
-    
-    // Generate quick reply options HTML
-    const quickReplyOptionsHtml = quickReplyOptions.map(option => 
-      `<option value="${this._escapeHtml(option)}">${this._escapeHtml(option)}</option>`
-    ).join('\\n              ');
 
     return `
       <!DOCTYPE html>
@@ -664,10 +661,17 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>HumanAgent Chat</title>
         <style>
+          :root {
+            --bubble-radius: 12px;
+            --bubble-padding: 10px 14px;
+            --message-gap: 12px;
+            --avatar-size: 24px;
+          }
+
           body {
             font-family: var(--vscode-font-family);
             font-size: var(--vscode-font-size);
-            line-height: 1.4;
+            line-height: 1.5;
             color: var(--vscode-foreground);
             background-color: var(--vscode-editor-background);
             margin: 0;
@@ -675,298 +679,341 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
             height: 100vh;
             display: flex;
             flex-direction: column;
-            transition: border 0.1s ease-in-out;
+            overflow: hidden;
           }
 
-          body.flashing {
-            border: 3px solid var(--vscode-charts-orange);
-            animation: flashBorder 2s ease-in-out;
-          }
-
-          @keyframes flashBorder {
-            0% { border-color: var(--vscode-charts-orange); }
-            25% { border-color: transparent; }
-            50% { border-color: var(--vscode-charts-orange); }
-            75% { border-color: transparent; }
-            100% { border-color: transparent; }
-          }
-
+          /* --- Header --- */
           .header {
-            padding: 10px;
+            padding: 8px 12px;
             border-bottom: 1px solid var(--vscode-panel-border);
             background-color: var(--vscode-panel-background);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            z-index: 10;
           }
 
-          .status {
+          .status-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 10px;
           }
 
-          .status-indicator {
+          .status-group {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+          }
+
+          .status-item {
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 6px;
+            font-size: 11px;
+            opacity: 0.9;
           }
 
           .status-dot {
             width: 8px;
             height: 8px;
             border-radius: 50%;
-            background-color: var(--vscode-charts-green);
+            background-color: var(--vscode-descriptionForeground);
           }
+
+          .status-dot.online { background-color: var(--vscode-charts-green); }
+          .status-dot.offline { background-color: var(--vscode-charts-red); }
+          .status-dot.pending { background-color: var(--vscode-charts-orange); }
 
           .control-buttons {
             display: flex;
-            gap: 5px;
-          }
-
-          .cog-button {
-            padding: 4px 8px;
-            font-size: 14px;
-            background-color: var(--vscode-button-background);
-            color: var(--vscode-button-foreground);
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
-          }
-
-          .cog-button:hover {
-            background-color: var(--vscode-button-hoverBackground);
-          }
-
-          .update-button {
-            padding: 4px 12px;
-            font-size: 12px;
-            background-color: #f59e0b;
-            color: white;
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
             gap: 4px;
-            font-weight: 500;
           }
 
-          .update-button:hover {
-            background-color: #d97706;
-          }
-
-          .control-button {
-            padding: 4px 8px;
-            font-size: 11px;
-            background-color: var(--vscode-button-background);
-            color: var(--vscode-button-foreground);
+          .icon-button {
+            background: transparent;
+            color: var(--vscode-foreground);
             border: none;
-            border-radius: 3px;
-            cursor: pointer;
-          }
-
-          .control-button:hover {
-            background-color: var(--vscode-button-hoverBackground);
-          }
-
-          .messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 10px;
-          }
-
-          .message {
-            margin-bottom: 15px;
-            padding: 10px;
-            border-radius: 5px;
-            border-left: 3px solid;
-          }
-
-          .ai-message {
-            background-color: var(--vscode-editor-selectionBackground);
-            border-left-color: var(--vscode-charts-blue);
-          }
-
-          .human-message {
-            background-color: var(--vscode-editor-hoverHighlightBackground);
-            border-left-color: var(--vscode-charts-green);
-          }
-
-          .message-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 5px;
-            font-size: 12px;
-            opacity: 0.8;
-          }
-
-          .sender {
-            font-weight: bold;
-          }
-
-          .timestamp {
-            font-size: 11px;
-          }
-
-          .message-content {
-            white-space: pre-wrap;
-            word-wrap: break-word;
-          }
-
-          .input-area {
-            padding: 10px;
-            border-top: 1px solid var(--vscode-panel-border);
-            background-color: var(--vscode-panel-background);
-          }
-
-          .input-container {
-            display: flex;
-            gap: 5px;
-          }
-
-          .quick-replies-row {
-            margin-top: 6px;
-          }
-
-          .message-input {
-            flex: 1;
-            padding: 8px;
-            border: 1px solid var(--vscode-input-border);
-            background-color: var(--vscode-input-background);
-            color: var(--vscode-input-foreground);
-            border-radius: 3px;
-            font-family: inherit;
-            font-size: inherit;
-            resize: vertical;
-            min-height: 36px;
-            max-height: 200px;
-            overflow-y: auto;
-            line-height: 1.4;
-          }
-
-          .quick-replies {
-            padding: 8px;
-            border: 1px solid var(--vscode-input-border);
-            background-color: var(--vscode-dropdown-background);
-            color: var(--vscode-dropdown-foreground);
-            border-radius: 3px;
-            font-family: inherit;
-            font-size: inherit;
-            width: 100%;
-            cursor: pointer;
-          }
-
-          .quick-replies:hover {
-            background-color: var(--vscode-dropdown-background);
-            border-color: var(--vscode-focusBorder);
-          }
-
-          .image-preview {
-            position: relative;
-            display: inline-block;
-            margin: 5px;
-            border: 1px solid var(--vscode-panel-border);
+            padding: 4px;
             border-radius: 4px;
-            overflow: hidden;
-          }
-
-          .image-preview img {
-            max-width: 200px;
-            max-height: 200px;
-            display: block;
-          }
-
-          .image-preview .remove-image {
-            position: absolute;
-            top: 4px;
-            right: 4px;
-            background-color: rgba(0, 0, 0, 0.7);
-            color: white;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
+            cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            cursor: pointer;
-            font-size: 16px;
-            line-height: 1;
           }
 
-          .image-preview .remove-image:hover {
-            background-color: rgba(255, 0, 0, 0.8);
+          .icon-button:hover {
+            background-color: var(--vscode-toolbar-hoverBackground);
           }
 
-          .send-button {
-            padding: 8px 16px;
+          /* --- Messages --- */
+          .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: var(--message-gap);
+            scroll-behavior: smooth;
+          }
+
+          .message-row {
+            display: flex;
+            flex-direction: column;
+            max-width: 85%;
+          }
+
+          .message-row.agent { align-self: flex-start; }
+          .message-row.user { align-self: flex-end; }
+
+          .message-bubble {
+            padding: var(--bubble-padding);
+            border-radius: var(--bubble-radius);
+            position: relative;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+          }
+
+          .agent .message-bubble {
+            background-color: var(--vscode-editor-selectionBackground);
+            color: var(--vscode-foreground);
+            border-bottom-left-radius: 2px;
+          }
+
+          .user .message-bubble {
             background-color: var(--vscode-button-background);
             color: var(--vscode-button-foreground);
-            border: none;
-            border-radius: 3px;
+            border-bottom-right-radius: 2px;
+          }
+
+          .message-info {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 4px;
+            font-size: 10px;
+            opacity: 0.7;
+          }
+
+          .user .message-info { flex-direction: row-reverse; }
+
+          .message-content {
+            word-wrap: break-word;
+          }
+
+          /* Markdown specific styles */
+          .message-content p { margin: 0 0 8px 0; }
+          .message-content p:last-child { margin-bottom: 0; }
+          .message-content code {
+            font-family: var(--vscode-editor-font-family);
+            background-color: rgba(0,0,0,0.1);
+            padding: 2px 4px;
+            border-radius: 4px;
+          }
+          .message-content pre {
+            background-color: rgba(0,0,0,0.15);
+            padding: 8px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 8px 0;
+          }
+          .message-content pre code {
+            background-color: transparent;
+            padding: 0;
+          }
+
+          /* --- Input Area --- */
+          .input-area {
+            padding: 12px;
+            border-top: 1px solid var(--vscode-panel-border);
+            background-color: var(--vscode-panel-background);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+          }
+
+          .quick-replies-chips {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+            scrollbar-width: none; /* Hide scrollbar for chips */
+          }
+          .quick-replies-chips::-webkit-scrollbar { display: none; }
+
+          .chip {
+            white-space: nowrap;
+            padding: 4px 10px;
+            background-color: var(--vscode-button-secondaryBackground);
+            color: var(--vscode-button-secondaryForeground);
+            border: 1px solid var(--vscode-button-secondaryBackground);
+            border-radius: 12px;
+            font-size: 11px;
             cursor: pointer;
+            transition: all 0.2s;
           }
 
-          .send-button:hover {
-            background-color: var(--vscode-button-hoverBackground);
+          .chip:hover:not(:disabled) {
+            background-color: var(--vscode-button-secondaryHoverBackground);
           }
 
-          .send-button:disabled {
+          .chip:disabled {
             opacity: 0.5;
             cursor: not-allowed;
           }
 
-          .waiting-indicator {
-            text-align: center;
-            padding: 10px;
-            font-style: italic;
-            color: var(--vscode-descriptionForeground);
+          .composer {
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
           }
 
-          .empty-state {
-            text-align: center;
-            padding: 20px;
-            color: var(--vscode-descriptionForeground);
+          .textarea-wrapper {
+            flex: 1;
+            position: relative;
+            background-color: var(--vscode-input-background);
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 6px;
+            padding: 4px 8px;
+          }
+
+          .textarea-wrapper:focus-within {
+            border-color: var(--vscode-focusBorder);
+          }
+
+          textarea {
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: var(--vscode-input-foreground);
+            font-family: inherit;
+            font-size: inherit;
+            resize: none;
+            padding: 4px 0;
+            outline: none;
+            min-height: 24px;
+            max-height: 150px;
+          }
+
+          .send-btn {
+            background-color: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+          }
+
+          .send-btn:hover:not(:disabled) {
+            background-color: var(--vscode-button-hoverBackground);
+          }
+
+          .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+          }
+
+          /* Waiting indicator */
+          .waiting-indicator {
+            align-self: center;
+            font-size: 11px;
+            opacity: 0.6;
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+          }
+
+          .dot-flashing {
+            position: relative;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background-color: var(--vscode-foreground);
+            color: var(--vscode-foreground);
+            animation: dotFlashing 1s infinite linear alternate;
+            animation-delay: .5s;
+          }
+          .dot-flashing::before, .dot-flashing::after {
+            content: '';
+            display: inline-block;
+            position: absolute;
+            top: 0;
+          }
+          .dot-flashing::before {
+            left: -8px;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background-color: var(--vscode-foreground);
+            color: var(--vscode-foreground);
+            animation: dotFlashing 1s infinite linear alternate;
+            animation-delay: 0s;
+          }
+          .dot-flashing::after {
+            left: 8px;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background-color: var(--vscode-foreground);
+            color: var(--vscode-foreground);
+            animation: dotFlashing 1s infinite linear alternate;
+            animation-delay: 1s;
+          }
+
+          @keyframes dotFlashing {
+            0% { background-color: var(--vscode-foreground); }
+            50%, 100% { background-color: rgba(var(--vscode-foreground), 0.2); }
           }
         </style>
       </head>
       <body>
         <div class="header">
-          <div class="status">
-            <div class="status-indicator" title="MCP server connection status">
-              <div class="status-dot" id="server-status-dot"></div>
-              <span id="server-status-text">HumanAgent MCP</span>
-            </div>
-            <div class="status-indicator" id="proxy-status-container" style="margin-left: 15px;" title="Proxy setting">
-              <div class="status-dot" id="proxy-status-dot" style="background-color: #808080;"></div>
-              <span id="proxy-status-text">Proxy</span>
+          <div class="status-row">
+            <div class="status-group">
+              <div class="status-item">
+                <div id="server-status-dot" class="status-dot"></div>
+                <span id="server-status-text">Server</span>
+              </div>
+              <div class="status-item">
+                <div id="proxy-status-dot" class="status-dot"></div>
+                <span id="proxy-status-text">Proxy</span>
+              </div>
             </div>
             <div class="control-buttons">
-              <button class="update-button" id="updateButton" style="display:none;" onclick="triggerUpdate()" title="Click to update extension">
-                <span>📥</span><span id="updateVersion">Update Available</span>
-              </button>
-              <button class="cog-button" onclick="showConfigMenu()" title="Configure MCP">⚙️</button>
+              <button class="icon-button" id="updateButton" style="display:none;" onclick="triggerUpdate()" title="Update available">📥</button>
+              <button class="icon-button" onclick="showConfigMenu()" title="Settings">⚙️</button>
             </div>
           </div>
         </div>
 
-        <div class="messages" id="messages">
-          ${messagesHtml || '<div class="empty-state">Waiting for AI messages...</div>'}
-          ${hasPendingResponse ? '<div class="waiting-indicator">⏳ Waiting for your response...</div>' : ''}
+        <div class="messages-container" id="messages">
+          <div class="empty-state" style="text-align: center; opacity: 0.5; padding: 40px 20px;">
+            Waiting for AI messages...
+          </div>
         </div>
 
         <div class="input-area">
-          <div class="input-container">
-            <textarea class="message-input" id="messageInput" placeholder="Type your response..." rows="1"></textarea>
-            <button class="send-button" id="sendButton" onclick="sendMessage()" ${hasPendingResponse ? '' : 'disabled'}>Send</button>
+          <div class="quick-replies-chips" id="chipsContainer">
+            ${quickReplyOptions.map(option => 
+              `<button class="chip" onclick="sendChip('${this._escapeHtml(option)}')" ${hasPendingResponse ? '' : 'disabled'}>${this._escapeHtml(option)}</button>`
+            ).join('')}
           </div>
-          <div class="quick-replies-row">
-            <select class="quick-replies" id="quickReplies" onchange="selectQuickReply()" ${hasPendingResponse ? '' : 'disabled'}>
-              <option value="">Quick Replies...</option>
-              ${quickReplyOptionsHtml}
-            </select>
+          <div class="composer">
+            <div class="textarea-wrapper">
+              <textarea id="messageInput" placeholder="Type a response..." rows="1"></textarea>
+            </div>
+            <button class="send-btn" id="sendButton" onclick="sendMessage()" ${hasPendingResponse ? '' : 'disabled'} title="Send message">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1.14645 1.14645C1.05118 1.24171 1 1.37087 1 1.50553V5.50553C1 5.75133 1.17937 5.95995 1.42152 5.99908L7.50553 7L1.42152 8.00092C1.17937 8.04005 1 8.24867 1 8.49447V12.4945C1 12.6291 1.05118 12.7583 1.14645 12.8536C1.24171 12.9488 1.37087 13 1.50553 13C1.56455 13 1.62343 12.9902 1.67964 12.9715L14.6796 8.63814C14.8711 8.57431 15 8.39656 15 8.20001V7.79999C15 7.60344 14.8711 7.42569 14.6796 7.36186L1.67964 3.02853C1.62343 3.0098 1.56455 3 1.50553 3C1.37087 3 1.24171 3.05118 1.14645 1.14645Z" fill="currentColor"/>
+              </svg>
+            </button>
           </div>
         </div>
 
+        <script src="${markedJsUri}"></script>
         <script>
           const vscode = acquireVsCodeApi();
           
@@ -1110,46 +1157,59 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
             });
           }
 
+          function addMessageToUI(msg) {
+            const container = document.getElementById('messages');
+            
+            // Remove empty state
+            const empty = container.querySelector('.empty-state');
+            if (empty) empty.remove();
+
+            const isAgent = msg.sender === 'agent';
+            const row = document.createElement('div');
+            row.className = \`message-row \${isAgent ? 'agent' : 'user'}\`;
+            
+            const time = new Date(msg.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            row.innerHTML = \`
+              <div class="message-info">
+                <span class="sender">\${isAgent ? 'Agent' : 'You'}</span>
+                <span class="timestamp">\${time}</span>
+              </div>
+              <div class="message-bubble">
+                <div class="message-content">\${marked.parse(msg.content)}</div>
+              </div>
+            \`;
+            
+            container.appendChild(row);
+            container.scrollTop = container.scrollHeight;
+          }
+
           function sendMessage() {
             const input = document.getElementById('messageInput');
-            const sendButton = document.getElementById('sendButton');
-            const message = input.value.trim();
-            const inputContainer = document.querySelector('.input-area');
-            
-            // Collect any attached images
-            const imagePreviews = inputContainer.querySelectorAll('.image-preview');
-            const images = Array.from(imagePreviews).map(preview => ({
-              data: preview.dataset.imageData,
-              mimeType: preview.dataset.mimeType
-            }));
-            
-            if (message) {
-              // Don't add message to DOM - let SSE handle it to avoid duplicates
-              
-              // Send message to extension
-              const messageData = {
-                type: 'sendMessage',
-                content: message,
-                requestId: currentPendingRequestId
-              };
-              
-              // Add images if any were pasted
-              if (images.length > 0) {
-                messageData.images = images;
-              }
-              
-              vscode.postMessage(messageData);
-              
-              // Clear input, reset height, remove images, and disable send button
-              input.value = '';
-              input.style.height = 'auto';
-              input.style.height = '36px';
-              imagePreviews.forEach(preview => preview.remove());
-              sendButton.disabled = true;
-              
-              // Clear the pending request ID
-              currentPendingRequestId = null;
-            }
+            const content = input.value.trim();
+            if (!content) return;
+
+            vscode.postMessage({
+              type: 'sendMessage',
+              content: content,
+              requestId: currentPendingRequestId
+            });
+
+            input.value = '';
+            input.style.height = 'auto';
+            setControlsEnabled(false);
+          }
+
+          function sendChip(text) {
+            const input = document.getElementById('messageInput');
+            input.value = text;
+            sendMessage();
+          }
+
+          function setControlsEnabled(enabled) {
+            document.getElementById('sendButton').disabled = !enabled;
+            const chips = document.querySelectorAll('.chip');
+            chips.forEach(c => c.disabled = !enabled);
           }
 
           // Global variable to store current server status
@@ -1216,81 +1276,49 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
 
           // Listen for messages from extension
           window.addEventListener('message', event => {
-            const message = event.data;
-            if (message.type === 'updateAvailable') {
-              // Show update button in header
-              const updateButton = document.getElementById('updateButton');
-              const updateVersion = document.getElementById('updateVersion');
-              if (updateButton && updateVersion) {
-                updateVersion.textContent = 'v' + message.version;
-                updateButton.style.display = 'flex';
-                console.log('Update button shown for version ' + message.version);
-              }
-            } else if (message.type === 'serverStatus') {
-              // Update global status variable
-              currentServerStatus = message.data;
-              
-              // Update status text based on configuration
-              const statusElement = document.getElementById('server-status-text');
-              if (statusElement && message.data.configType) {
-                if (message.data.configType === 'native') {
-                  statusElement.textContent = 'HumanAgent MCP Server (Connected)';
-                } else {
-                  statusElement.textContent = 'HumanAgent MCP Server (Unknown)';
-                }
-              }
-              
-              // Update proxy status display
-              const proxyStatusContainer = document.getElementById('proxy-status-container');
-              const proxyStatusDot = document.getElementById('proxy-status-dot');
-              const proxyStatusText = document.getElementById('proxy-status-text');
-              
-              if (message.data.proxy && message.data.proxy.running) {
-                // Proxy is running - update indicator
-                if (proxyStatusContainer && proxyStatusDot && proxyStatusText) {
-                  proxyStatusContainer.style.display = 'flex';
-                  if (message.data.globalProxyEnabled) {
-                    proxyStatusDot.style.backgroundColor = '#4caf50'; // Green - enabled
-                    proxyStatusText.textContent = 'Proxy (Enabled)';
-                  } else {
-                    proxyStatusDot.style.backgroundColor = '#ff9800'; // Orange - disabled
-                    proxyStatusText.textContent = 'Proxy (Disabled)';
-                  }
-                }
-              } else {
-                // Proxy not running - show stopped status
-                if (proxyStatusContainer && proxyStatusDot && proxyStatusText) {
-                  proxyStatusContainer.style.display = 'flex';
-                  proxyStatusDot.style.backgroundColor = '#f44336'; // Red - not running
-                  proxyStatusText.textContent = 'Proxy (Stopped)';
-                }
-              }
-              
-              console.log('Server status:', message.data);
-            } else if (message.type === 'flashBorder') {
-              // Trigger flashing border animation
-              document.body.classList.add('flashing');
-              setTimeout(() => {
-                document.body.classList.remove('flashing');
-              }, 2000);
-            } else if (message.type === 'playSound') {
-              // Sound removed - only play on AI tool calls
-              console.log('Sound trigger removed - only playing on AI tool calls');
-            } else if (message.command === 'updateOverrideFileExists') {
-              // Update override file existence and refresh cog menu
-              window.overrideFileExists = message.exists;
-              console.log('Updated overrideFileExists to:', message.exists);
-            } else if (message.type === 'serverStarted') {
-              // Server was manually started - reset backoff and reconnect immediately
-              console.log('🚀 Server started - resetting reconnection backoff and reconnecting immediately');
-              reconnectAttempts = 0;
-              if (reconnectTimeout) {
-                clearTimeout(reconnectTimeout);
-              }
-              connectionInProgress = false;
-              setupSSEConnection();
+            const msg = event.data;
+            switch (msg.type) {
+              case 'chat_message':
+                handleIncomingChatMessage(msg);
+                break;
+              case 'request-state-change':
+                handleRequestStateChange(msg.data);
+                break;
+              case 'serverStatus':
+                updateStatusUI(msg.data);
+                break;
+              case 'serverStarted':
+                // Handled by extension
+                break;
             }
           });
+
+          function handleIncomingChatMessage(data) {
+            const message = data.message;
+            addMessageToUI(message);
+          }
+
+          function updateStatusUI(data) {
+            currentServerStatus = data;
+            const sDot = document.getElementById('server-status-dot');
+            const pDot = document.getElementById('proxy-status-dot');
+            
+            if (data.isRunning) {
+              sDot.className = 'status-dot online';
+            } else {
+              sDot.className = 'status-dot offline';
+            }
+
+            if (data.proxy && data.proxy.running) {
+              pDot.className = data.globalProxyEnabled ? 'status-dot online' : 'status-dot pending';
+            } else {
+              pDot.className = 'status-dot offline';
+            }
+          }
+
+          function showConfigMenu() {
+            vscode.postMessage({ type: 'mcpAction', action: 'requestServerStatus' });
+          }
 
           // Set up SSE connection for real-time server events
           let currentEventSource = null;
@@ -1363,328 +1391,63 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
           
           function getReconnectDelay() {
             // Exponential backoff: 1s, 2s, 4s, 8s, 16s, 30s, 30s, ...
-            const delay = Math.min(BASE_RECONNECT_DELAY * Math.pow(2, reconnectAttempts), MAX_RECONNECT_DELAY);
-            return delay;
-          }
-          
-          function setupSSEConnection() {
-            if (connectionInProgress) {
-              console.log('⚠️ SSE connection already in progress, skipping duplicate attempt');
-              return;
-            }
-            
+            const delay = Math.min(BASE_RECONNECT_DELAY * Math.pow(2, reconnectAttempts), MAX_R          function setupSSEConnection() {
+            if (connectionInProgress) return;
             connectionInProgress = true;
             
             try {
-              // Close existing connection if present
-              if (currentEventSource && currentEventSource.readyState !== 2) { // 2 = CLOSED
-                console.log('🔄 Closing existing EventSource before creating new one');
+              if (currentEventSource && currentEventSource.readyState !== 2) {
                 currentEventSource.close();
               }
               
-              console.log('Setting up SSE connection to MCP server for session:', sessionId, 'workspace:', '${workspacePath}');
               const eventSource = new EventSource(\`http://localhost:${this.port}/mcp?sessionId=\${sessionId}\`);
               currentEventSource = eventSource;
               
-              // Enhanced connection health monitoring
-              let lastHeartbeat = Date.now();
-              let heartbeatTimeout = null;
-              let messageCount = 0;
-              let connectionStartTime = Date.now();
-              
-              // Monitor heartbeat to detect stale connections
-              function resetHeartbeatTimeout() {
-                if (heartbeatTimeout) {
-                  clearTimeout(heartbeatTimeout);
-                }
-                heartbeatTimeout = setTimeout(() => {
-                  console.error('❌ SSE Connection Analysis:');
-                  console.error('  - No heartbeat for 25 seconds, EventSource appears stale');
-                  console.error('  - Last heartbeat:', new Date(lastHeartbeat).toISOString());
-                  console.error('  - Connection duration:', Math.round((Date.now() - connectionStartTime) / 1000), 'seconds');
-                  console.error('  - Messages received:', messageCount);
-                  console.error('  - EventSource readyState:', eventSource.readyState);
-                  console.error('  - Reconnecting...');
-                  eventSource.close();
-                  connectionInProgress = false;
-                  updateConnectionStatus(false, true);
-                  const delay = getReconnectDelay();
-                  reconnectAttempts++;
-                  console.log('🔄 Reconnecting after heartbeat timeout in ' + (delay/1000) + 's (attempt #' + reconnectAttempts + ')...');
-                  if (reconnectTimeout) clearTimeout(reconnectTimeout);
-                  reconnectTimeout = setTimeout(setupSSEConnection, delay);
-                }, 25000); // Timeout after 25 seconds (2.5x heartbeat interval)
-              }
-              
-              eventSource.onopen = function(event) {
-                console.log('✅ SSE connection opened for session:', sessionId);
-                console.log('   EventSource readyState:', eventSource.readyState);
-                console.log('   Connection time:', new Date().toISOString());
-                lastHeartbeat = Date.now();
-                connectionStartTime = Date.now();
-                messageCount = 0;
-                connectionInProgress = false; // Connection successful, allow future connections
-                reconnectAttempts = 0; // Reset backoff on successful connection
-                updateConnectionStatus(true);
-                resetHeartbeatTimeout();
-                syncSessionState(); // Sync UI state with server after reconnect
+              eventSource.onopen = () => {
+                connectionInProgress = false;
+                reconnectAttempts = 0;
+                updateStatusUI({ isRunning: true }); // Assume server is up if SSE works
               };
               
-              eventSource.onmessage = function(event) {
+              eventSource.onmessage = (event) => {
                 try {
-                  messageCount++;
                   const data = JSON.parse(event.data);
-                  
-                  // Handle heartbeat for connection monitoring
-                  if (data.type === 'heartbeat') {
-                    lastHeartbeat = Date.now();
-                    resetHeartbeatTimeout();
-                    console.log('💓 Heartbeat received at', new Date().toISOString(), '(msg #' + messageCount + ')');
-                    return; // Don't log heartbeats further
-                  }
-                  
-                  console.log('📨 SSE event received (msg #' + messageCount + '):', data);
+                  if (data.type === 'heartbeat') return;
                   
                   if (data.type === 'request-state-change') {
                     handleRequestStateChange(data.data);
                   } else if (data.type === 'chat_message') {
                     handleIncomingChatMessage(data);
-                  } else if (data.type === 'session-name-changed') {
-                    handleSessionNameChanged(data.data);
-                  // Removed web_user_message auto-trigger - no longer needed
                   }
-                } catch (error) {
-                  console.error('Error parsing SSE data:', error);
+                } catch (e) {
+                  console.error('SSE Error:', e);
                 }
               };
               
-              eventSource.onerror = function(error) {
-                console.error('❌ SSE connection error detected:');
-                console.error('   Error object:', error);
-                console.error('   EventSource readyState:', eventSource.readyState);
-                console.error('   Connection duration:', Math.round((Date.now() - connectionStartTime) / 1000), 'seconds');
-                console.error('   Messages received before error:', messageCount);
-                console.error('   Last heartbeat:', new Date(lastHeartbeat).toISOString());
-                
-                if (heartbeatTimeout) {
-                  clearTimeout(heartbeatTimeout);
-                }
-                
-                // Log readyState meaning
-                const stateNames = ['CONNECTING', 'OPEN', 'CLOSED'];
-                console.error('   EventSource state:', stateNames[eventSource.readyState] || 'UNKNOWN');
-                
-                // CRITICAL: Close the EventSource to prevent automatic browser reconnection
+              eventSource.onerror = () => {
                 eventSource.close();
-                
-                // Update status to disconnected
-                updateConnectionStatus(false, true);
-                
-                // Reset connection state and try to reconnect with exponential backoff
                 connectionInProgress = false;
-                const delay = getReconnectDelay();
-                reconnectAttempts++;
-                
-                console.log('🔄 Reconnecting SSE in ' + (delay/1000) + 's (attempt #' + reconnectAttempts + ')...');
-                
-                // Clear any existing reconnect timeout
-                if (reconnectTimeout) {
-                  clearTimeout(reconnectTimeout);
-                }
-                
-                reconnectTimeout = setTimeout(setupSSEConnection, delay);
+                const delay = Math.min(1000 * Math.pow(2, reconnectAttempts++), 30000);
+                setTimeout(setupSSEConnection, delay);
               };
-              
-            } catch (error) {
-              console.error('Failed to setup SSE connection:', error);
+            } catch (e) {
               connectionInProgress = false;
             }
           }
 
-          // Global variable to store current request ID for responses
-          let currentPendingRequestId = null;
-
-          function handleRequestStateChange(data) {
-            console.log('Handling request state change:', data);
-            
-            const messagesContainer = document.getElementById('messages');
-            const messageInput = document.getElementById('messageInput');
-            const sendButton = document.getElementById('sendButton');
-            
-            if (data.state === 'waiting_for_response') {
-              // Store the request ID for sending response
-              currentPendingRequestId = data.requestId;
-              
-              // Enable controls for response
-              const quickReplies = document.getElementById('quickReplies');
-              if (sendButton) {
-                sendButton.disabled = false;
-                quickReplies.disabled = false;
-                messageInput.focus();
-              }
-              
-              // Add waiting indicator if not present
-              if (messagesContainer) {
-                const existingWaiting = messagesContainer.querySelector('.waiting-indicator');
-                if (!existingWaiting) {
-                  const waitingDiv = document.createElement('div');
-                  waitingDiv.className = 'waiting-indicator';
-                  waitingDiv.textContent = '⏳ Waiting for your response...';
-                  messagesContainer.appendChild(waitingDiv);
-                }
-              }
-              
-              // Sound removed - only play on AI tool calls
-              
-              // Flash border
-              document.body.classList.add('flashing');
-              setTimeout(() => {
-                document.body.classList.remove('flashing');
-              }, 2000);
-              
-            } else if (data.state === 'completed') {
-              // Clear pending request
-              currentPendingRequestId = null;
-              
-              // Disable send button and quick replies (but keep text input enabled)
-              const quickReplies = document.getElementById('quickReplies');
-              if (sendButton) {
-                sendButton.disabled = true;
-                quickReplies.disabled = true;
-              }
-              
-              // Remove waiting indicator
-              if (messagesContainer) {
-                const waitingIndicator = messagesContainer.querySelector('.waiting-indicator');
-                if (waitingIndicator) {
-                  waitingIndicator.remove();
-                }
-              }
-            }
-          }
-
-          function handleIncomingChatMessage(data) {
-            console.log('Handling incoming chat message:', data);
-            
-            const message = data.message;
-            const messagesContainer = document.getElementById('messages');
-            if (messagesContainer) {
-              // Remove empty state if it exists
-              const emptyState = messagesContainer.querySelector('.empty-state');
-              if (emptyState) {
-                emptyState.remove();
-              }
-              
-              // Use unified addMessageToUI function
-              addMessageToUI(message);
-              
-              // Sound removed - only play on AI tool calls
-            }
-          }
-
-          function handleSessionNameChanged(data) {
-            console.log('Handling session name change:', data);
-            
-            // Update the session name display in VS Code interface
-            // The data contains: { sessionId, name }
-            if (data.sessionId && data.name) {
-              // Update window title or header display if needed
-              // For VS Code webview, we can send a message to the extension
-              vscode.postMessage({
-                command: 'sessionNameUpdated',
-                sessionId: data.sessionId,
-                name: data.name
-              });
-            }
-          }
-
-          // handleWebUserMessage removed - no longer needed for auto-forwarding
-
-          // Load conversation history from server
-          async function loadConversationHistory() {
-            try {
-              const response = await fetch('http://127.0.0.1:${this.port}/sessions/${this.workspaceSessionId}/messages');
-              if (response.ok) {
-                const data = await response.json();
-                const messagesContainer = document.getElementById('messages');
-                if (messagesContainer && data.messages) {
-                  // Clear loading indicator
-                  messagesContainer.innerHTML = '';
-                  
-                  // Add each message using the same logic as web interface
-                  for (const msg of data.messages) {
-                    addMessageToUI(msg);
-                  }
-                  
-                  console.log(\`Loaded \${data.messages.length} messages from server\`);
-                } else {
-                  // Show empty state
-                  messagesContainer.innerHTML = '<div class="empty-state">No messages yet. Start a conversation!</div>';
-                }
-              }
-            } catch (error) {
-              console.error('Failed to load conversation history:', error);
-              document.getElementById('messages').innerHTML = '<div class="error-state">Failed to load conversation history</div>';
-            }
-          }
-          
-          // Add message to UI (similar to web interface)
-          function addMessageToUI(message) {
-            const messagesContainer = document.getElementById('messages');
-            if (!messagesContainer) return;
-            
-            const messageDiv = document.createElement('div');
-            messageDiv.className = \`message \${message.sender === 'user' ? 'human-message' : 'ai-message'}\`;
-            
-            // Determine sender label based on sender and source
-            let senderLabel = 'AI';
-            if (message.sender === 'user') {
-              if (message.source === 'vscode') {
-                senderLabel = 'You (VS Code)';
-              } else {
-                senderLabel = 'You (Web)';
-              }
-            }
-            
-            const timestamp = new Date(message.timestamp).toLocaleTimeString();
-            
-            messageDiv.innerHTML = \`
-              <div class="message-header">
-                <span class="sender">\${senderLabel}</span>
-                <span class="timestamp">\${timestamp}</span>
-              </div>
-              <div class="message-content">\${escapeHtml(message.content)}</div>
-            \`;
-            
-            messagesContainer.appendChild(messageDiv);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-          }
-          
-          // Escape HTML helper function
-          function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-          }
-          
-          // Load conversation history on page load
-          loadConversationHistory();
-          
-          // Initialize SSE connection
+          // Initial scroll and connection
           setupSSEConnection();
-          
-          // Webview initialized - status can be requested manually via cog menu
+          const messages = document.getElementById('messages');
+          messages.scrollTop = messages.scrollHeight;
         </script>
       </body>
       </html>
     `;
   }
 
-  private _escapeHtml(text: string): string {
-    if (typeof text !== 'string') {
-      text = String(text || '');
-    }
-    return text
+  private _escapeHtml(unsafe: string) {
+    if (!unsafe) return '';
+    return unsafe
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")

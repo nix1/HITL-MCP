@@ -204,6 +204,7 @@
   "dependencies": {
     "jsonata": "^2.1.0",
     "jsonpath-plus": "^10.3.0",
+    "marked": "^18.0.2",
     "mockttp": "^4.2.1",
     "node-telegram-bot-api": "^0.67.0",
     "node-wav-player": "^1.0.0"
