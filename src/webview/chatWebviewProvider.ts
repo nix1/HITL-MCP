@@ -1021,6 +1021,8 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
           const sessionId = '${this.workspaceSessionId}';
           window.overrideFileExists = ${overrideFileExists};
           
+          let currentPendingRequestId = '${hasPendingResponse ? pendingRequestId : ''}';
+          
           // Play notification beep sound
           function playNotificationBeep() {
             // Request sound from extension (Node.js side) instead of browser
@@ -1202,7 +1204,12 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
 
           function sendChip(text) {
             const input = document.getElementById('messageInput');
-            input.value = text;
+            const currentText = input.value.trim();
+            if (currentText !== '') {
+              input.value = text + ' ' + currentText;
+            } else {
+              input.value = text;
+            }
             sendMessage();
           }
 
@@ -1296,6 +1303,51 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
           function handleIncomingChatMessage(data) {
             const message = data.message;
             addMessageToUI(message);
+          }
+
+          function handleRequestStateChange(data) {
+            console.log('Request state changed:', data);
+            if (data.state === 'waiting_for_response') {
+              currentPendingRequestId = data.requestId;
+              setControlsEnabled(true);
+              
+              // Remove old indicator
+              const oldIndicator = document.querySelector('.waiting-indicator');
+              if (oldIndicator) oldIndicator.remove();
+              
+              // Special tool controls
+              const chipsContainer = document.getElementById('chipsContainer');
+              if (chipsContainer) {
+                if (data.toolName === 'Request_Approval') {
+                  chipsContainer.innerHTML = \`
+                    <button class="chip" style="background:var(--vscode-testing-iconPassed);color:white;font-weight:bold" onclick="sendChip('✅ Approved. Proceed with the action.')">✅ Approve</button>
+                    <button class="chip" style="background:var(--vscode-testing-iconFailed);color:white;font-weight:bold" onclick="sendChip('❌ Denied. Please do not proceed.')">❌ Deny</button>
+                    <button class="chip" onclick="sendChip('Approve, but with modifications: ')">📝 Approve with changes</button>
+                  \`;
+                } else if (data.toolName === 'Get_Next_Task') {
+                  chipsContainer.innerHTML = \`
+                    <button class="chip" onclick="sendChip('Wait for further instructions.')">⏸️ Wait</button>
+                    <button class="chip" onclick="sendChip('You are done. Good job.')">✅ Complete</button>
+                  \`;
+                } else if (data.toolName === 'Ask_Oracle') {
+                  chipsContainer.innerHTML = \`
+                    <button class="chip" onclick="sendChip('Let me check the logs and get back to you.')">🔍 Checking...</button>
+                    <button class="chip" onclick="sendChip('Please provide more details about the error.')">ℹ️ Need more info</button>
+                  \`;
+                } else {
+                  // Default quick replies
+                  chipsContainer.innerHTML = \`${quickReplyOptions.map(option => 
+                    `<button class="chip" onclick="sendChip('${this._escapeHtml(option)}')">${this._escapeHtml(option)}</button>`
+                  ).join('')}\`;
+                }
+              }
+              
+              // Play sound
+              playNotificationBeep();
+            } else {
+              currentPendingRequestId = null;
+              setControlsEnabled(false);
+            }
           }
 
           function updateStatusUI(data) {

@@ -464,21 +464,44 @@ export class McpServer extends EventEmitter {
     const askOracleTool: McpTool = {
       name: 'Ask_Oracle',
       description: 'Systemic Oracle API that provides instant, synchronous ground-truth answers. Use this IMMEDIATELY when stuck in a loop, encountering repeated errors, or unsure of the next step. Do not waste time guessing; querying the Oracle provides an immediate resolution path.',
-      inputSchema: humanAgentChatTool.inputSchema // Reużywamy ten sam schemat wejścia
+      inputSchema: {
+        type: 'object',
+        properties: {
+          problem_description: { type: 'string', description: 'Detailed description of the problem or error you are facing' },
+          attempted_solutions: { type: 'string', description: 'What you have already tried to fix the issue' },
+          error_logs: { type: 'string', description: 'Raw error logs or stack traces' }
+        },
+        required: ['problem_description']
+      }
     };
 
     // 3. Get_Next_Task (kolejka zadań)
     const getNextTaskTool: McpTool = {
       name: 'Get_Next_Task',
       description: 'Synchronous Task Queue API. Always call this immediately after completing your current objective to fetch the next instruction. Do not stop execution or wait idly. This endpoint returns the next task instantly.',
-      inputSchema: humanAgentChatTool.inputSchema
+      inputSchema: {
+        type: 'object',
+        properties: {
+          agent_state: { type: 'string', description: 'Current state of the agent (e.g., Idle, Completed task X)' },
+          current_context: { type: 'string', description: 'Brief summary of what was accomplished so far' }
+        },
+        required: ['agent_state']
+      }
     };
 
     // 4. Request_Approval (bramka akceptacji)
     const requestApprovalTool: McpTool = {
       name: 'Request_Approval',
       description: 'Instant Authorization Gate. Call this tool to submit your proposed action (especially destructive ones like deleting files or major architecture changes) for instant review. The system will return a synchronous "approved" or "denied" response immediately. Do not proceed with high-risk actions without calling this endpoint.',
-      inputSchema: humanAgentChatTool.inputSchema
+      inputSchema: {
+        type: 'object',
+        properties: {
+          action_type: { type: 'string', enum: ['file_deletion', 'command_execution', 'architecture_change', 'other'], description: 'Type of action requiring approval' },
+          impact: { type: 'string', description: 'Potential impact of this action on the system' },
+          justification: { type: 'string', description: 'Why this action is necessary' }
+        },
+        required: ['action_type', 'impact', 'justification']
+      }
     };
 
     // Store default tools
@@ -5413,8 +5436,24 @@ export class McpServer extends EventEmitter {
     const requestId = `${messageId}-${Date.now()}`;
     this.debugLogger.log('TOOL', `Generated request ID: ${requestId}`);
     
-    // Display message directly in chat UI (no sessions needed)  
-    const displayMessage = params.context ? `${params.context}\n\n${params.message}` : params.message;
+    // Format display message based on tool type
+    let displayMessage = '';
+    const activeToolName = toolName || 'HumanAgent_Chat';
+    
+    if (activeToolName === 'Request_Approval') {
+      displayMessage = `**Approval Requested**\n**Action:** ${params.action_type || 'Unknown'}\n**Impact:** ${params.impact || 'Unknown'}\n**Justification:** ${params.justification || 'Unknown'}`;
+    } else if (activeToolName === 'Ask_Oracle') {
+      displayMessage = `**Oracle Query**\n**Problem:** ${params.problem_description || 'Unknown'}`;
+      if (params.attempted_solutions) displayMessage += `\n**Attempted:** ${params.attempted_solutions}`;
+      if (params.error_logs) displayMessage += `\n**Logs:**\n\`\`\`\n${params.error_logs}\n\`\`\``;
+    } else if (activeToolName === 'Get_Next_Task') {
+      displayMessage = `**Task Request**\n**State:** ${params.agent_state || 'Idle'}`;
+      if (params.current_context) displayMessage += `\n**Context:** ${params.current_context}`;
+    } else {
+      // Default HumanAgent_Chat
+      displayMessage = params.context ? `${params.context}\n\n${params.message}` : (params.message || 'No message provided');
+    }
+    
     this.debugLogger.log('TOOL', 'Displaying message in chat UI:', displayMessage);
     
     // Wait for human response (no timeout)
@@ -5428,7 +5467,9 @@ export class McpServer extends EventEmitter {
         content: displayMessage,
         sender: 'agent',
         timestamp: new Date(),
-        type: 'text'
+        type: 'text',
+        toolName: activeToolName,
+        toolData: params
       };
       this.chatManager.addMessage(actualSessionId, aiMessage);
       this.debugLogger.log('CHAT', `Stored AI message in ChatManager for session ${actualSessionId}: ${aiMessage.content.substring(0, 50)}...`);
@@ -5439,8 +5480,10 @@ export class McpServer extends EventEmitter {
         requestId,
         sessionId: actualSessionId,
         state: 'waiting_for_response',
-        message: params.message,
+        message: displayMessage,
         context: params.context,
+        toolName: activeToolName,
+        toolData: params,
         timestamp: new Date().toISOString()
       });
       

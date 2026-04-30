@@ -18,6 +18,8 @@ export interface ChatMessage {
   timestamp: Date;
   type: 'text' | 'system';
   source?: 'web' | 'vscode'; // Track message source for user messages
+  toolName?: string;         // Name of the tool used by the agent
+  toolData?: any;            // Structured data payload passed to the tool
 }
 
 export interface McpServerConfig {
@@ -50,11 +52,12 @@ export interface McpTool {
 }
 
 export interface HumanAgentChatToolParams {
-  message: string;
+  message?: string;
   context?: string;
   sessionId?: string;
   priority?: 'low' | 'normal' | 'high' | 'urgent';
   timeout?: number;
+  [key: string]: any; // Allow arbitrary fields for diverse tool schemas
 }
 
 export interface HumanAgentChatToolResult {
