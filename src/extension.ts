@@ -9,14 +9,14 @@ import { ChatTreeProvider } from './providers/chatTreeProvider';
 import { ChatWebviewProvider } from './webview/chatWebviewProvider';
 import { McpConfigManager } from './mcp/mcpConfigManager';
 import { ServerManager } from './serverManager';
-import { TelemetryService } from './telemetry/telemetryService';
+
 
 let chatTreeProvider: ChatTreeProvider;
 let mcpConfigManager: McpConfigManager;
 let workspaceSessionId: string;
 let serverManager: ServerManager;
 let SERVER_PORT: number; // Dynamic port: 3738 for dev, 3737 for production
-let telemetryService: TelemetryService;
+
 let updateStatusBarItem: vscode.StatusBarItem | undefined;
 let chatWebviewProvider: ChatWebviewProvider;
 
@@ -292,11 +292,7 @@ async function verifyCertificateInstallation(): Promise<boolean> {
 export async function activate(context: vscode.ExtensionContext) {
 	console.log('HumanAgent MCP extension activated!');
 
-	// Initialize telemetry service
-	telemetryService = new TelemetryService(context);
-	await telemetryService.trackExtensionActivated();
-	await telemetryService.trackFirstTimeUser(); // Track new installs
-	await telemetryService.trackWeeklyActive(); // Track weekly retention
+
 
 	// Determine port based on extension mode (dev vs production)
 	SERVER_PORT = context.extensionMode === vscode.ExtensionMode.Development ? 3738 : 3737;
@@ -434,7 +430,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push({ dispose: () => clearInterval(proxyStatusInterval) });
 
 	// Initialize Chat Webview Provider (no internal server dependency)
-	chatWebviewProvider = new ChatWebviewProvider(context.extensionUri, null, mcpConfigManager, workspaceSessionId, context, mcpProvider, SERVER_PORT, telemetryService);
+	chatWebviewProvider = new ChatWebviewProvider(context.extensionUri, null, mcpConfigManager, workspaceSessionId, context, mcpProvider, SERVER_PORT);
 	context.subscriptions.push(
 		vscode.window.registerWebviewViewProvider(ChatWebviewProvider.viewType, chatWebviewProvider)
 	);
@@ -444,8 +440,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	// Register Commands
 	const openChatCommand = vscode.commands.registerCommand('humanagent-mcp.openChat', () => {
-		// Track chat opened from command palette
-		telemetryService.trackChatOpened('command_palette');
 		// Focus the chat webview
 		vscode.commands.executeCommand('humanagent-mcp.chatView.focus');
 	});
@@ -937,7 +931,7 @@ async function registerSessionWithStandaloneServer(sessionId: string, forceRereg
 		}
 	} catch (error) {
 		console.error(`HumanAgent MCP: Error registering session ${sessionId}, retrying in 3 seconds...`, error);
-		telemetryService.trackError('connection_error', error instanceof Error ? error.message : String(error));
+
 		
 		// Wait 3 seconds and try once more
 		await new Promise(resolve => setTimeout(resolve, 3000));
@@ -1049,10 +1043,6 @@ async function ensureServerAccessibleAndRegister(sessionId: string, configType: 
 }
 
 export async function deactivate() {
-	// Track deactivation event
-	if (telemetryService) {
-		await telemetryService.trackExtensionDeactivated();
-	}
 	
 	if (workspaceSessionId) {
 		// Unregister from standalone server

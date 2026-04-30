@@ -5,7 +5,7 @@ import { McpServer } from '../mcp/server';
 import { ChatMessage } from '../mcp/types';
 import { McpConfigManager } from '../mcp/mcpConfigManager';
 import { AudioNotification } from '../audio/audioNotification';
-import { TelemetryService } from '../telemetry/telemetryService';
+
 import { ServerManager } from '../serverManager';
 
 export class ChatWebviewProvider implements vscode.WebviewViewProvider {
@@ -30,8 +30,7 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
     private readonly workspaceSessionId?: string,
     private readonly context?: vscode.ExtensionContext,
     private readonly mcpProvider?: any,
-    private readonly port: number = 3737,
-    private readonly telemetryService?: TelemetryService
+    private readonly port: number = 3737
   ) {
     this.mcpServer = mcpServer;
     this.mcpConfigManager = mcpConfigManager;
@@ -74,10 +73,7 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
     // Combine context and message if context exists
     const fullMessage = context ? `${context}\n\n${message}` : message;
     
-    // Track message received
-    if (this.telemetryService && this.workspaceSessionId) {
-      this.telemetryService.trackMessageReceived(fullMessage.length, this.workspaceSessionId);
-    }
+
     
     // Add AI message to chat
     const aiMessage: ChatMessage = {
@@ -144,10 +140,7 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
       ]
     };
 
-    // Track chat opened from tree view
-    if (this.telemetryService) {
-      this.telemetryService.trackChatOpened('tree_view');
-    }
+
 
     // Load conversation history from centralized chat manager
     this.loadConversationHistory();
@@ -188,10 +181,7 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
     try {
       console.log('ChatWebviewProvider: Sending human response:', content, images ? `with ${images.length} images` : '');
       
-      // Track message sent
-      if (this.telemetryService && this.workspaceSessionId) {
-        this.telemetryService.trackMessageSent(content.length, this.workspaceSessionId);
-      }
+
       
       // Don't add to local messages array - let server handle storage and SSE handle updates
 
