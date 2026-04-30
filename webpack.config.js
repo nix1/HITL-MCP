@@ -88,4 +88,35 @@ const mcpServerConfig = {
   },
 };
 
-module.exports = [ extensionConfig, mcpServerConfig ];
+/** @type WebpackConfig */
+const webviewClientConfig = {
+  target: 'web',
+  mode: 'none',
+  entry: './src/webview/client/index.ts',
+  output: {
+    path: path.resolve(__dirname, 'dist'),
+    filename: 'webview.js',
+  },
+  resolve: {
+    extensions: ['.ts', '.js']
+  },
+  module: {
+    rules: [
+      {
+        test: /\.ts$/,
+        exclude: /node_modules/,
+        use: [
+          {
+            loader: 'ts-loader',
+            options: {
+              configFile: 'tsconfig.json' // We might need a separate tsconfig but let's try sharing for now
+            }
+          }
+        ]
+      }
+    ]
+  },
+  devtool: 'nosources-source-map',
+};
+
+module.exports = [ extensionConfig, mcpServerConfig, webviewClientConfig ];

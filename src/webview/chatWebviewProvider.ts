@@ -139,6 +139,7 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
       enableScripts: true,
       localResourceRoots: [
         this._extensionUri,
+        vscode.Uri.joinPath(this._extensionUri, 'dist'),
         vscode.Uri.joinPath(this._extensionUri, 'src', 'webview', 'media')
       ]
     };

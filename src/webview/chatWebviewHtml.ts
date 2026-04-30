@@ -49,7 +49,7 @@ export function getChatWebviewHtml(
   // --- Build webview URIs ---
   const mediaPath = path.join(extensionPath, 'src', 'webview', 'media');
   const cssUri = webview.asWebviewUri(vscode.Uri.file(path.join(mediaPath, 'chat.css')));
-  const jsUri = webview.asWebviewUri(vscode.Uri.file(path.join(mediaPath, 'chat.js')));
+  const jsUri = webview.asWebviewUri(vscode.Uri.file(path.join(extensionPath, 'dist', 'webview.js')));
   const markedJsUri = webview.asWebviewUri(vscode.Uri.file(
     path.join(extensionPath, 'node_modules', 'marked', 'lib', 'marked.umd.js')
   ));
