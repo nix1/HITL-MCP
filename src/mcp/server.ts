@@ -9,7 +9,7 @@ import { DebugLogger } from './logger';
 import { ToolRegistry } from './toolRegistry';
 import { McpHttpServer } from './httpServer';
 import { IMcpServer } from './types';
-import { VERSION, initializeProxyCA } from './utils';
+import { VERSION } from './utils';
 
 export class McpServer extends EventEmitter implements IMcpServer {
   private config: McpServerConfig;
@@ -216,7 +216,7 @@ export class McpServer extends EventEmitter implements IMcpServer {
     await this.httpServer.start();
     try {
       const certStoragePath = process.env.HUMANAGENT_CERT_STORAGE_PATH;
-      const httpsOptions = await initializeProxyCA(certStoragePath);
+      const httpsOptions = await this.proxyServer.certManager.initializeProxyCA(certStoragePath);
       const rules = await this.getProxyRules();
       await this.initializeDefaultRules();
       const finalRules = await this.getProxyRules();
