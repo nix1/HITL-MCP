@@ -91,8 +91,12 @@ export class ToolManager {
         'btn-mod': 'Approve, but with modifications: '
       });
     } else if (data.toolName === 'Report_Completion') {
+      const nextSug = data.toolData?.next_suggestion;
+      const nextBtnLabel = nextSug ? `✅ Proceed: ${nextSug.length > 30 ? nextSug.substring(0, 27) + '...' : nextSug}` : '⏭️ Next step';
+      const nextBtnResponse = nextSug ? `Excellent. Please proceed with: ${nextSug}` : 'Great work! Proceed to the next logical step.';
+
       container.innerHTML = msgHtml + `
-        <button class="chip primary" id="btn-next">⏭️ Next step</button>
+        <button class="chip primary" id="btn-next">${this.ui.escapeHtml(nextBtnLabel)}</button>
         <button class="chip" id="btn-refactor">🧹 Refactor</button>
         <button class="chip" id="btn-tests">🧪 Add tests</button>
         <button class="chip" id="btn-ux">✨ Polish UX</button>
@@ -100,7 +104,7 @@ export class ToolManager {
         <button class="chip" id="btn-done">✅ All done</button>
       `;
       this.attachChipEvents(container, {
-        'btn-next': 'Great work! Proceed to the next logical step.',
+        'btn-next': nextBtnResponse,
         'btn-refactor': 'Review the recent changes and refactor for better architecture and consistency.',
         'btn-tests': 'Check test coverage for the recent changes and add missing tests.',
         'btn-ux': 'Review the UI/UX. Suggest and implement improvements or UI delight.',
