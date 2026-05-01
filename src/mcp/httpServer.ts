@@ -330,7 +330,7 @@ export class McpHttpServer {
       const body = await this.readRequestBody(req);
       try {
         const parsed = JSON.parse(body);
-        this.server.chatManager.handleHumanResponse(parsed.sessionId, parsed.requestId, parsed.response);
+        await this.server.handleHumanResponse(parsed.sessionId, parsed.requestId, parsed.response);
         res.setHeader('Content-Type', 'application/json');
         res.end(JSON.stringify({ success: true }));
       } catch (e) { res.statusCode = 400; res.end(); }
@@ -405,7 +405,7 @@ export class McpHttpServer {
       return { id: sessionId, title, quickReplyOptions };
     });
 
-    return `<!DOCTYPE html><html><head><title>HITL</title><style>body { font-family: sans-serif; background: #1e1e1e; color: #ccc; padding: 20px; }</style></head><body><h1>HITL Control</h1>${sessions.map(s => `<div><h3>${s.title}</h3><button onclick="fetch('/response', {method:'POST',body:JSON.stringify({sessionId:'${s.id}',requestId:'latest',response:'Yes'})})">Yes</button></div>`).join('')}</body></html>`;
+    return `<!DOCTYPE html><html><head><title>HITL</title><style>body { font-family: sans-serif; background: #1e1e1e; color: #ccc; padding: 20px; }</style></head><body><h1>HITL Control</h1>${sessions.map(s => `<div><h3>${s.title}</h3><button onclick="fetch('/response', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'${s.id}',requestId:'latest',response:'Yes'})})">Yes</button></div>`).join('')}</body></html>`;
   }
 
   private generateRuleBuilderHTML(): string {

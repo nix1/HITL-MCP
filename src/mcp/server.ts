@@ -126,7 +126,7 @@ export class McpServer extends EventEmitter implements IMcpServer {
     const sessionId = message.params.sessionId;
     const availableTools = (sessionId ? this.sessionTools.get(sessionId) : null) || this.tools;
     
-    const hitlTools = ['HITL_Chat', 'Ask_Oracle', 'Report_Completion', 'Request_Approval', 'Ask_Multiple_Choice', 'Request_Timed_Decision'];
+    const hitlTools = ['Ask_Human_Expert', 'Ask_Oracle', 'Report_Completion', 'Request_Approval', 'Ask_Multiple_Choice'];
     if (hitlTools.includes(name) && availableTools.has(name)) {
       return await this.handleHITLChatTool(message.id, args, sessionId, name);
     }
@@ -141,8 +141,19 @@ export class McpServer extends EventEmitter implements IMcpServer {
     }
     
     const requestId = `${messageId}-${Date.now()}`;
-    const activeToolName = toolName || 'HITL_Chat';
-    let displayMessage = params.context ? `${params.context}\n\n${params.message}` : (params.message || 'No message provided');
+    const activeToolName = toolName || 'Ask_Human_Expert';
+    
+    let messageBody = params.message || params.question || params.summary || params.problem_description || params.impact || 'No message provided';
+    
+    if (activeToolName === 'Report_Completion' && params.next_suggestion) {
+      messageBody += `\n\n**Next Suggestion:** ${params.next_suggestion}`;
+    }
+    
+    if (activeToolName === 'Request_Approval') {
+      messageBody = `**Action:** ${params.action_type}\n**Impact:** ${params.impact}\n**Justification:** ${params.justification}`;
+    }
+
+    let displayMessage = params.context ? `${params.context}\n\n${messageBody}` : messageBody;
     
     return new Promise((resolve) => {
       const aiMessage: ChatMessage = {
@@ -210,6 +221,48 @@ export class McpServer extends EventEmitter implements IMcpServer {
 
   public getMessages(sessionId: string): any[] {
     return this.chatManager.getMessages(sessionId);
+  }
+  
+  public async handleHumanResponse(sessionId: string, requestId: string, response: string): Promise<void> {
+    let actualRequestId = requestId;
+    
+    if (requestId === 'latest') {
+      const latest = this.chatManager.getLatestPendingRequest(sessionId);
+      if (latest) {
+        actualRequestId = latest.requestId;
+      } else {
+        this.debugLogger.log('WARN', `No latest request found for session ${sessionId}`);
+        return;
+      }
+    }
+
+    const resolver = this.requestResolvers.get(actualRequestId);
+    if (!resolver) {
+      this.debugLogger.log('WARN', `No resolver found for request ${actualRequestId} in session ${sessionId}`);
+      return;
+    }
+    
+    // Add user message to history
+    const userMsg: ChatMessage = {
+      id: `user-${Date.now()}`,
+      content: response,
+      sender: 'user',
+      timestamp: new Date(),
+      type: 'text',
+      source: 'web'
+    };
+    this.chatManager.addMessage(sessionId, userMsg);
+    this.chatManager.removePendingRequest(sessionId, actualRequestId);
+    
+    // Broadcast message to all web interfaces and session SSEs
+    this.sendToSessionAndWeb(sessionId, 'chat_message', { 
+      sessionId, 
+      message: { ...userMsg, timestamp: userMsg.timestamp.toISOString() } 
+    });
+    
+    // Resolve the tool call
+    resolver.resolve(response);
+    this.requestResolvers.delete(actualRequestId);
   }
 
   public async start(): Promise<void> {

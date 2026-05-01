@@ -18,8 +18,7 @@ suite('McpTools Test Suite', () => {
             'Ask_Oracle',
             'Report_Completion',
             'Request_Approval',
-            'Ask_Multiple_Choice',
-            'Request_Timed_Decision'
+            'Ask_Multiple_Choice'
         ];
         
         for (const name of expectedTools) {
@@ -39,22 +38,6 @@ suite('McpTools Test Suite', () => {
         assert.strictEqual(schema.properties.options.type, 'array');
         assert.ok(schema.properties.recommendation, 'Should have recommendation property');
         assert.deepStrictEqual(schema.required, ['question', 'options']);
-    });
-
-    test('Request_Timed_Decision schema is correct', () => {
-        const tools = (server as any).tools as Map<string, any>;
-        const tool = tools.get('Request_Timed_Decision');
-        assert.ok(tool, 'Request_Timed_Decision tool should exist');
-
-        const schema = tool.inputSchema;
-        assert.strictEqual(schema.type, 'object');
-        assert.ok(schema.properties.question, 'Should have question property');
-        assert.ok(schema.properties.options, 'Should have options property');
-        assert.strictEqual(schema.properties.options.type, 'array');
-        assert.ok(schema.properties.default_option_id, 'Should have default_option_id property');
-        assert.ok(schema.properties.timeout_seconds, 'Should have timeout_seconds property');
-        assert.strictEqual(schema.properties.timeout_seconds.type, 'number');
-        assert.deepStrictEqual(schema.required, ['question', 'options', 'default_option_id']);
     });
 
     test('Report_Completion schema replaces Get_Next_Task', () => {

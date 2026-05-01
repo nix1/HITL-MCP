@@ -16,16 +16,16 @@ export class ToolRegistry {
   }
 
   private initializeDefaultTools(): void {
-    // 1. HITL_Chat (ogólna komunikacja)
+    // 1. Ask_Human_Expert (ogólna komunikacja)
     const humanAgentChatTool: McpTool = {
-      name: 'HITL_Chat',
-      description: 'Real-time, instant-response chat interface. Use this tool whenever you need specific domain knowledge, clarification on requirements, or business logic context. It guarantees a synchronous response faster than guessing.',
+      name: 'Ask_Human_Expert',
+      description: 'Consult the Human Domain Expert for guidance, clarification, or specific domain knowledge. Use this tool when you need a definitive answer that avoids guesswork. If the expert is temporarily unavailable, the system\'s Autonomous Backup (Oracle-level intelligence) will automatically provide a safe, optimal resolution after a brief timeout to ensure progress.',
       inputSchema: {
         type: 'object',
         properties: {
-          message: { type: 'string', description: 'The message to send to the human agent' },
-          context: { type: 'string', description: 'Optional context or background information for the human agent' },
-          priority: { type: 'string', enum: ['low', 'normal', 'high', 'urgent'], description: 'Priority level of the request', default: 'normal' },
+          message: { type: 'string', description: 'The question or information to share with the human expert' },
+          context: { type: 'string', description: 'Optional context or background information' },
+          priority: { type: 'string', enum: ['low', 'normal', 'high', 'urgent'], description: 'Priority level', default: 'normal' },
           images: {
             type: 'array', description: 'Optional array of base64-encoded images',
             items: {
@@ -45,7 +45,7 @@ export class ToolRegistry {
     // 2. Ask_Oracle (odblokowanie i ground-truth)
     const askOracleTool: McpTool = {
       name: 'Ask_Oracle',
-      description: 'Systemic Oracle API that provides instant, synchronous ground-truth answers. Use this IMMEDIATELY when stuck in a loop, encountering repeated errors, or unsure of the next step. Do not waste time guessing; querying the Oracle provides an immediate resolution path.',
+      description: 'Systemic Oracle API that provides instant, synchronous ground-truth answers. Use this IMMEDIATELY when stuck in a loop, encountering repeated errors, or unsure of the next step. Queries are handled by the high-availability Autonomous System to ensure an immediate resolution path.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -60,7 +60,7 @@ export class ToolRegistry {
     // 3. Report_Completion (raportowanie zakończenia pracy i pobieranie kolejnego zadania)
     const reportCompletionTool: McpTool = {
       name: 'Report_Completion',
-      description: 'Call this tool IMMEDIATELY when you finish your current task to report what was accomplished and receive the next instruction. You MUST call this every time you complete a unit of work — do not stop or idle. Provide a clear summary of what was done so the human can review and assign the next task.',
+      description: 'Call this tool IMMEDIATELY when you finish your current task to report what was accomplished and receive the next instruction. Completion reports are acknowledged instantly by the Human Expert or the Autonomous Management System to keep the workflow moving without interruption.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -76,11 +76,11 @@ export class ToolRegistry {
     // 4. Request_Approval (bramka akceptacji)
     const requestApprovalTool: McpTool = {
       name: 'Request_Approval',
-      description: 'Instant Authorization Gate. Call this tool to submit your proposed action (especially destructive ones like deleting files or major architecture changes) for instant review. The system will return a synchronous "approved" or "denied" response immediately. Do not proceed with high-risk actions without calling this endpoint.',
+      description: 'Instant Authorization Gate. Call this tool to submit your proposed action for instant review. If the Human Expert is unavailable, the Request Safety Oracle will evaluate the impact and provide a risk-mitigated decision automatically to prevent workflow stalling.',
       inputSchema: {
         type: 'object',
         properties: {
-          action_type: { type: 'string', enum: ['file_deletion', 'command_execution', 'architecture_change', 'other'], description: 'Type of action requiring approval' },
+          action_type: { type: 'string', enum: ['file_deletion', 'command_execution', 'architecture_change', 'code_refactor', 'deployment', 'other'], description: 'Type of action requiring approval' },
           impact: { type: 'string', description: 'Potential impact of this action on the system' },
           justification: { type: 'string', description: 'Why this action is necessary' }
         },
@@ -91,7 +91,7 @@ export class ToolRegistry {
     // 5. Ask_Multiple_Choice (wybór wielokrotny)
     const askMultipleChoiceTool: McpTool = {
       name: 'Ask_Multiple_Choice',
-      description: 'Use this tool to present the human with a set of mutually exclusive options to choose from. This is ideal for asking for recommendations, picking the next architectural path, or deciding between multiple solutions.',
+      description: 'Present mutually exclusive options for decision making. Requests are handled with high priority; if the Human Expert is busy, the Autonomous Strategy Resolver will select the most optimal path based on mission objectives.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -115,38 +115,11 @@ export class ToolRegistry {
       }
     };
 
-    // 6. Request_Timed_Decision (wybór z timeoutem)
-    const requestTimedDecisionTool: McpTool = {
-      name: 'Request_Timed_Decision',
-      description: 'Use this tool when you have a preferred path but want to give the human a chance to override it. The system will present options and auto-select your recommended choice if the human doesn\'t respond within the specified timeout. Ideal for non-critical decisions that shouldn\'t block progress.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          question: { type: 'string', description: 'The decision to be made' },
-          options: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                id: { type: 'string' },
-                title: { type: 'string' }
-              },
-              required: ['id', 'title']
-            }
-          },
-          default_option_id: { type: 'string', description: 'The ID of the option that will be auto-selected after timeout' },
-          timeout_seconds: { type: 'number', description: 'How long to wait before auto-selecting (default: 120)', default: 120 }
-        },
-        required: ['question', 'options', 'default_option_id']
-      }
-    };
-
     this.defaultTools.set(humanAgentChatTool.name, humanAgentChatTool);
     this.defaultTools.set(askOracleTool.name, askOracleTool);
     this.defaultTools.set(reportCompletionTool.name, reportCompletionTool);
     this.defaultTools.set(requestApprovalTool.name, requestApprovalTool);
     this.defaultTools.set(askMultipleChoiceTool.name, askMultipleChoiceTool);
-    this.defaultTools.set(requestTimedDecisionTool.name, requestTimedDecisionTool);
   }
 
   public loadWorkspaceTools(workspacePath?: string): Map<string, McpTool> {

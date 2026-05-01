@@ -67,8 +67,20 @@ export class ToolManager {
   }
 
   private renderChips(container: HTMLElement, data: RequestStateChange) {
+    const toolNameBadge = `<div class="tool-badge">${this.ui.escapeHtml(data.toolName || 'Tool Request')}</div>`;
+    
+    let toolMsg = data.message || data.toolData?.message || data.toolData?.question || data.toolData?.summary || data.toolData?.problem_description || '';
+    
     if (data.toolName === 'Request_Approval') {
-      container.innerHTML = `
+      toolMsg = `<strong>Action:</strong> ${data.toolData?.action_type}<br><strong>Impact:</strong> ${data.toolData?.impact}<br><strong>Justification:</strong> ${data.toolData?.justification}`;
+    } else if (data.toolName === 'Report_Completion' && data.toolData?.summary) {
+       toolMsg = `<strong>Summary:</strong> ${data.toolData.summary}${data.toolData.next_suggestion ? `<br><br><strong>Next Suggestion:</strong> ${data.toolData.next_suggestion}` : ''}`;
+    }
+
+    const msgHtml = toolMsg ? `<div class="tool-context-header">${toolNameBadge}${toolMsg.replace(/\n/g, '<br>')}</div>` : toolNameBadge;
+
+    if (data.toolName === 'Request_Approval') {
+      container.innerHTML = msgHtml + `
         <button class="chip primary" id="btn-approve">✅ Approve</button>
         <button class="chip" id="btn-deny">❌ Deny</button>
         <button class="chip" id="btn-mod">📝 Approve with changes</button>
@@ -79,7 +91,7 @@ export class ToolManager {
         'btn-mod': 'Approve, but with modifications: '
       });
     } else if (data.toolName === 'Report_Completion') {
-      container.innerHTML = `
+      container.innerHTML = msgHtml + `
         <button class="chip primary" id="btn-next">⏭️ Next step</button>
         <button class="chip" id="btn-refactor">🧹 Refactor</button>
         <button class="chip" id="btn-tests">🧪 Add tests</button>
@@ -96,7 +108,7 @@ export class ToolManager {
         'btn-done': 'All done. You may stop.'
       });
     } else if (data.toolName === 'Ask_Oracle') {
-      container.innerHTML = `
+      container.innerHTML = msgHtml + `
         <button class="chip primary" id="btn-best">✅ Try best solution</button>
         <button class="chip" id="btn-ignore">⏭️ Ignore & continue</button>
         <button class="chip" id="btn-instead">🔄 Try instead...</button>
@@ -110,17 +122,18 @@ export class ToolManager {
       });
     } else if (data.toolName === 'Ask_Multiple_Choice' && data.toolData?.options) {
       container.className = 'multiple-choice-container';
-      this.renderMultipleChoice(container, data);
+      container.innerHTML = msgHtml;
+      this.renderMultipleChoice(container, data, true);
     } else {
-      container.innerHTML = this.getDefaultChipsHtml();
+      container.innerHTML = msgHtml + this.getDefaultChipsHtml();
       this.attachDefaultChipEvents(container);
     }
   }
 
-  private renderMultipleChoice(container: HTMLElement, data: RequestStateChange) {
+  private renderMultipleChoice(container: HTMLElement, data: RequestStateChange, append: boolean = false) {
     const recommendationId = data.toolData.recommendation;
     
-    container.innerHTML = data.toolData.options.map((opt: any) => {
+    const cardsHtml = data.toolData.options.map((opt: any) => {
       const isRecommended = opt.id === recommendationId;
       const cardClass = isRecommended ? 'option-card recommended' : 'option-card';
       const badge = isRecommended ? '<span class="rec-badge">Recommended</span>' : '';
@@ -134,6 +147,12 @@ export class ToolManager {
         </button>
       `;
     }).join('');
+
+    if (append) {
+      container.innerHTML += cardsHtml;
+    } else {
+      container.innerHTML = cardsHtml;
+    }
 
     data.toolData.options.forEach((opt: any) => {
       const btn = document.getElementById(`opt-${opt.id}`);

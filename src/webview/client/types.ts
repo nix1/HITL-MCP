@@ -35,6 +35,7 @@ export interface RequestStateChange {
   requestId: string;
   toolName?: string;
   toolData?: any;
+  message?: string;
 }
 
 // Global VS Code API type

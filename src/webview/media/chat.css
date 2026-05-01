@@ -211,6 +211,29 @@ body {
 }
 
 /* --- Multiple Choice Cards --- */
+.tool-badge {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-block;
+  margin-bottom: 8px;
+}
+
+.tool-context-header {
+  font-size: 13px;
+  margin-bottom: 12px;
+  color: var(--vscode-foreground);
+  line-height: 1.5;
+  padding: 8px;
+  background: var(--vscode-editor-background);
+  border-radius: 6px;
+  border: 1px solid var(--vscode-panel-border);
+}
+
 .multiple-choice-container {
   display: flex;
   flex-direction: column;

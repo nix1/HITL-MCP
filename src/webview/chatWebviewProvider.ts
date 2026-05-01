@@ -75,7 +75,8 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
     this._view = webviewView;
     webviewView.webview.options = {
       enableScripts: true,
-      localResourceRoots: [this._extensionUri, vscode.Uri.joinPath(this._extensionUri, 'dist'), vscode.Uri.joinPath(this._extensionUri, 'src', 'webview', 'media')]
+      localResourceRoots: [this._extensionUri, vscode.Uri.joinPath(this._extensionUri, 'dist'), vscode.Uri.joinPath(this._extensionUri, 'src', 'webview', 'media')],
+      retainContextWhenHidden: true
     };
 
     if (this.registrationCheckComplete) this.updateWebview();
@@ -109,7 +110,13 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
       await fetch(`http://localhost:${this.port}/response`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requestId: responseRequestId, response: content, source: 'vscode', images })
+        body: JSON.stringify({ 
+          sessionId: this.workspaceSessionId,
+          requestId: responseRequestId, 
+          response: content, 
+          source: 'vscode', 
+          images 
+        })
       });
       this.actionHandler.currentRequestId = undefined;
     } catch (error) {

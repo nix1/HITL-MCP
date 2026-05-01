@@ -36,7 +36,10 @@ const extensionConfig = {
         exclude: /node_modules/,
         use: [
           {
-            loader: 'ts-loader'
+            loader: 'ts-loader',
+            options: {
+              transpileOnly: true
+            }
           }
         ]
       }
@@ -71,7 +74,10 @@ const mcpServerConfig = {
         exclude: /node_modules/,
         use: [
           {
-            loader: 'ts-loader'
+            loader: 'ts-loader',
+            options: {
+              transpileOnly: true
+            }
           }
         ]
       }
@@ -109,7 +115,8 @@ const webviewClientConfig = {
           {
             loader: 'ts-loader',
             options: {
-              configFile: 'tsconfig.json' // We might need a separate tsconfig but let's try sharing for now
+              transpileOnly: true,
+              configFile: 'tsconfig.json'
             }
           }
         ]

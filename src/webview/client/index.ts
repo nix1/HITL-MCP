@@ -67,8 +67,32 @@ window.addEventListener('message', (event) => {
 (window as any).triggerUpdate = () => network.postMessage('triggerUpdate');
 
 // --- Boot ---
-network.setupSSEConnection();
-const messagesEl = document.getElementById('messages');
-if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
+const boot = async () => {
+  network.setupSSEConnection();
+  
+  // Sync state (history + pending requests)
+  const sessionState = await network.syncSessionState();
+  if (sessionState && sessionState.messages) {
+    sessionState.messages.forEach((msg: any) => ui.addMessageToUI(msg));
+    
+    // If there is a pending request, trigger the tool UI
+    if (sessionState.pendingRequests && sessionState.pendingRequests.length > 0) {
+      const pending = sessionState.pendingRequests[0];
+      tools.handleRequestStateChange({
+        requestId: pending.requestId,
+        state: 'waiting_for_response',
+        toolName: pending.toolName,
+        toolData: pending,
+        message: pending.message || pending.question || pending.summary || pending.problem_description,
+        timestamp: new Date().toISOString()
+      });
+    }
+  }
+
+  const messagesEl = document.getElementById('messages');
+  if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
+};
+
+boot();
 
 console.log('HITL MCP Webview initialized');

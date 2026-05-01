@@ -77,6 +77,7 @@ export interface IMcpServer {
   sendToWebInterface(eventType: string, data: any): void;
   sendToSession(sessionId: string, eventType: string, data: any): void;
   sendToSessionAndWeb(sessionId: string, eventType: string, data: any): void;
+  handleHumanResponse(sessionId: string, requestId: string, response: string): Promise<void>;
   
   // Proxy management
   getProxyRules(): Promise<any[]>;
