@@ -1,6 +1,9 @@
 import { AppState, RequestStateChange } from './types';
 import { UIManager } from './ui';
 
+// Declaring marked since it's loaded via CDN/script tag in HTML
+declare const marked: any;
+
 export class ToolManager {
   private timedDecisionInterval: any = null;
   private timedDecisionTimeout: any = null;
@@ -72,12 +75,13 @@ export class ToolManager {
     let toolMsg = data.message || data.toolData?.message || data.toolData?.question || data.toolData?.summary || data.toolData?.problem_description || '';
     
     if (data.toolName === 'Request_Approval') {
-      toolMsg = `<strong>Action:</strong> ${data.toolData?.action_type}<br><strong>Impact:</strong> ${data.toolData?.impact}<br><strong>Justification:</strong> ${data.toolData?.justification}`;
+      toolMsg = `**Action:** ${data.toolData?.action_type}\n\n**Impact:** ${data.toolData?.impact}\n\n**Justification:** ${data.toolData?.justification}`;
     } else if (data.toolName === 'Report_Completion' && data.toolData?.summary) {
-       toolMsg = `<strong>Summary:</strong> ${data.toolData.summary}${data.toolData.next_suggestion ? `<br><br><strong>Next Suggestion:</strong> ${data.toolData.next_suggestion}` : ''}`;
+       toolMsg = `**Summary:** ${data.toolData.summary}${data.toolData.next_suggestion ? `\n\n**Next Suggestion:** ${data.toolData.next_suggestion}` : ''}`;
     }
 
-    const msgHtml = toolMsg ? `<div class="tool-context-header">${toolNameBadge}${toolMsg.replace(/\n/g, '<br>')}</div>` : toolNameBadge;
+    // Use marked for rich formatting in the header
+    const msgHtml = toolMsg ? `<div class="tool-context-header">${toolNameBadge}${marked.parse(toolMsg)}</div>` : toolNameBadge;
 
     if (data.toolName === 'Request_Approval') {
       container.innerHTML = msgHtml + `
