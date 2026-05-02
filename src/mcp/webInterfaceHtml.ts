@@ -14,8 +14,9 @@ export function generateWebInterfaceHTML(server: IMcpServer): string {
     const messageSettings = server.sessionMessageSettings.get(id);
     let quickReplyOptions: string[] = ['Yes Please Proceed', 'Explain in more detail please'];
     if (messageSettings?.quickReplies?.options) quickReplyOptions = messageSettings.quickReplies.options;
+    const shortId = id.replace(/^session-/, '').substring(0, 8);
     const title = friendlyName
-      || (workspaceRoot ? path.basename(workspaceRoot) : `Session ${id.substring(0, 8)}`);
+      || (workspaceRoot ? path.basename(workspaceRoot) : `Session ${shortId}`);
     return { id, title, quickReplyOptions };
   });
 
@@ -458,14 +459,15 @@ function getQReplies(sid){
 
 function addSessionToUI(sid, title, qrOpts) {
   if(document.querySelector('[data-session="'+sid+'"]')) return;
-  const label = title||'Session '+sid.substring(0,8);
+  const shortId=sid.replace(/^session-/,'').substring(0,8);
+  const label = title||'Session '+shortId;
   if(!__S__.find(s=>s.id===sid)) __S__.push({id:sid, title:label, quickReplyOptions:qrOpts||['Yes Please Proceed','Explain in more detail please']});
   document.getElementById('panel-no-sessions')?.remove();
 
   const nav = document.getElementById('session-nav');
-  // Remove the static "No active sessions" placeholder text if present
-  const placeholder=nav?.querySelector('div:not(.nav-item)');
-  if(placeholder) placeholder.remove();
+  // Remove any non-nav-item children (the static "No active sessions" placeholder).
+  // Using Array iteration because :not() selectors can be unreliable with inline styles.
+  if(nav) Array.from(nav.children).forEach(c=>{ if(!c.classList.contains('nav-item')) c.remove(); });
 
   const item = document.createElement('div');
   item.className='nav-item session-item';

@@ -300,7 +300,11 @@ export class McpHttpServer {
       const sessions = this.server.getActiveSessions().map(id => {
         const messageSettings = this.server.sessionMessageSettings.get(id);
         const quickReplyOptions = messageSettings?.quickReplies?.options || ['Yes Please Proceed', 'Explain in more detail please'];
-        return { id, name: this.server.sessionNames.get(id) || 'Unnamed Session', workspacePath: this.server.sessionWorkspacePaths.get(id), quickReplyOptions };
+        const workspacePath = this.server.sessionWorkspacePaths.get(id);
+        const friendlyName = this.server.sessionNames.get(id);
+        const shortId = id.replace(/^session-/, '').substring(0, 8);
+        const name = friendlyName || (workspacePath ? path.basename(workspacePath) : `Session ${shortId}`);
+        return { id, name, workspacePath, quickReplyOptions };
       });
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ sessions }));

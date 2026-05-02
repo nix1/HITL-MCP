@@ -211,7 +211,8 @@ export class McpServer extends EventEmitter implements IMcpServer {
     const messageSettings = this.sessionMessageSettings.get(sessionId);
     let quickReplyOptions: string[] = ['Yes Please Proceed', 'Explain in more detail please'];
     if (messageSettings?.quickReplies?.options) quickReplyOptions = messageSettings.quickReplies.options;
-    const title = friendlyName || (resolvedWorkspaceRoot ? path.basename(resolvedWorkspaceRoot) : `Session ${sessionId.substring(0, 8)}`);
+    const shortId = sessionId.replace(/^session-/, '').substring(0, 8);
+    const title = friendlyName || (resolvedWorkspaceRoot ? path.basename(resolvedWorkspaceRoot) : `Session ${shortId}`);
 
     this.sendToWebInterface('session-registered', { sessionId, title, quickReplyOptions, totalSessions: this.activeSessions.size });
   }
