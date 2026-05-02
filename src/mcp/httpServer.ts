@@ -4,6 +4,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { IMcpServer, McpTool } from './types';
 import { DebugLogger } from './logger';
+import { generateWebInterfaceHTML } from './webInterfaceHtml';
 
 export class McpHttpServer {
   private httpServer?: http.Server;
@@ -144,6 +145,8 @@ export class McpHttpServer {
       await this.handleMcpToolsEndpoint(req, res, reqUrl);
     } else if (pathLower === '/hitl' || pathLower === '/hitl/') {
       await this.handleWebInterface(req, res);
+    } else if (pathLower === '/assets/marked.js') {
+      await this.handleMarkedJsAsset(res);
     } else if (pathLower.startsWith('/proxy')) {
       await this.handleProxyEndpoint(req, res);
     } else if (pathLower === '/jsonata-rule-builder.html' || pathLower === '/rule-builder' || pathLower === '/builder') {
@@ -377,12 +380,29 @@ export class McpHttpServer {
 
   private async handleWebInterface(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.end(this.generateWebInterfaceHTML());
+    res.end(generateWebInterfaceHTML(this.server));
   }
 
   private async handleRuleBuilderInterface(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.end(this.generateRuleBuilderHTML());
+  }
+
+  private async handleMarkedJsAsset(res: http.ServerResponse): Promise<void> {
+    const candidates = [
+      path.resolve(__dirname, '../../node_modules/marked/lib/marked.umd.js'),
+      path.resolve(__dirname, '../node_modules/marked/lib/marked.umd.js'),
+    ];
+    for (const candidate of candidates) {
+      if (fs.existsSync(candidate)) {
+        res.setHeader('Content-Type', 'application/javascript');
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        res.end(fs.readFileSync(candidate));
+        return;
+      }
+    }
+    res.setHeader('Content-Type', 'application/javascript');
+    res.end('/* marked.js not available */');
   }
 
   private async readRequestBody(req: http.IncomingMessage): Promise<string> {
@@ -394,22 +414,8 @@ export class McpHttpServer {
     });
   }
 
-  private generateWebInterfaceHTML(): string {
-    const sessions = Array.from(this.server.activeSessions).map((sessionId) => {
-      const workspaceRoot = this.server.sessionWorkspacePaths.get(sessionId);
-      const friendlyName = this.server.sessionNames.get(sessionId);
-      const messageSettings = this.server.sessionMessageSettings.get(sessionId);
-      let quickReplyOptions = ["Yes Please Proceed", "Explain in more detail please"];
-      if (messageSettings?.quickReplies?.options) quickReplyOptions = messageSettings.quickReplies.options;
-      let title = friendlyName || (workspaceRoot ? `Workspace: ${path.basename(workspaceRoot)}` : `Session: ${sessionId.substring(0, 8)}`);
-      return { id: sessionId, title, quickReplyOptions };
-    });
-
-    return `<!DOCTYPE html><html><head><title>HITL</title><style>body { font-family: sans-serif; background: #1e1e1e; color: #ccc; padding: 20px; }</style></head><body><h1>HITL Control</h1>${sessions.map(s => `<div><h3>${s.title}</h3><button onclick="fetch('/response', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'${s.id}',requestId:'latest',response:'Yes'})})">Yes</button></div>`).join('')}</body></html>`;
-  }
-
   private generateRuleBuilderHTML(): string {
-     return `<!DOCTYPE html><html><head><title>Rule Builder</title></head><body><h1>Rule Builder</h1><p>Simplified for now.</p></body></html>`;
+    return `<!DOCTYPE html><html><head><title>Rule Builder</title></head><body><h1>Rule Builder</h1><p>Simplified for now.</p></body></html>`;
   }
 
   public sendSSEMessage(response: http.ServerResponse, message: any): void {

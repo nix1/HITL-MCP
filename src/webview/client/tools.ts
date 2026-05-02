@@ -1,215 +1,195 @@
 import { AppState, RequestStateChange } from './types';
 import { UIManager } from './ui';
 
-// Declaring marked since it's loaded via CDN/script tag in HTML
 declare const marked: any;
 
 export class ToolManager {
   private timedDecisionInterval: any = null;
   private timedDecisionTimeout: any = null;
+  private activeBubbleId: string | null = null;
 
   constructor(private state: AppState, private ui: UIManager) {}
 
   public handleRequestStateChange(data: RequestStateChange) {
     if (data.state === 'waiting_for_response') {
       this.state.currentPendingRequestId = data.requestId;
+
+      document.querySelector('.waiting-indicator')?.remove();
+
+      const bubble = this.renderToolBubble(data);
+      this.activeBubbleId = 'tool-bubble-' + data.requestId;
+
       this.ui.setControlsEnabled(true);
-
-      const oldIndicator = document.querySelector('.waiting-indicator');
-      if (oldIndicator) oldIndicator.remove();
-
-      const chipsContainer = document.getElementById('chipsContainer');
-      if (chipsContainer) {
-        chipsContainer.className = 'quick-replies-chips';
-        this.renderChips(chipsContainer, data);
-      }
+      this.repopulateQuickReplies();
       this.ui.playNotificationBeep();
-
-      // Automatically trigger policy-based auto-decision
-      this.evaluateAutoDecisionPolicy(data);
+      this.evaluateAutoDecisionPolicy(data, bubble);
     } else {
       this.state.currentPendingRequestId = null;
       this.ui.setControlsEnabled(false);
       this.clearTimedDecisionTimer();
+      const chipsContainer = document.getElementById('chipsContainer');
+      if (chipsContainer) chipsContainer.innerHTML = '';
     }
   }
 
-  private evaluateAutoDecisionPolicy(data: RequestStateChange) {
-    if (this.state.autoDecisionPolicy === 'manual') return;
+  private renderToolBubble(data: RequestStateChange): HTMLElement {
+    const container = document.getElementById('messages');
+    if (!container) return document.createElement('div');
 
-    // Find the default option for this tool
-    const defaultAction = this.getDefaultActionForTool(data);
-    if (!defaultAction) return;
+    const empty = container.querySelector('.empty-state');
+    if (empty) empty.remove();
 
-    if (this.state.autoDecisionPolicy === 'instant') {
-      this.sendChip(defaultAction.text + ' (auto-selected instantly)');
-    } else if (this.state.autoDecisionPolicy === 'timed') {
-      this.startTimedDecisionCountdown(
-        this.state.autoDecisionTimeout || 120, 
-        defaultAction.text, 
-        defaultAction.label
-      );
-    }
-  }
-
-  private getDefaultActionForTool(data: RequestStateChange): { text: string, label: string } | null {
-    if (data.toolName === 'Request_Approval') {
-      return { text: '✅ Approved. Proceed with the action.', label: 'Approve' };
-    } else if (data.toolName === 'Report_Completion') {
-      return { text: 'Great work! Proceed to the next logical step.', label: 'Next Step' };
-    } else if (data.toolName === 'Ask_Oracle') {
-      return { text: 'Proceed with the most likely solution.', label: 'Try Best Solution' };
-    } else if (data.toolName === 'Ask_Multiple_Choice' && data.toolData?.options) {
-      const recId = data.toolData.recommendation;
-      const recOpt = data.toolData.options.find((o: any) => o.id === recId) || data.toolData.options[0];
-      return { text: `I select option ${recOpt.id}: ${recOpt.title}`, label: recOpt.title };
-    } else if (this.state.quickReplyOptions.length > 0) {
-      return { text: this.state.quickReplyOptions[0], label: this.state.quickReplyOptions[0] };
-    }
-    return null;
-  }
-
-  private renderChips(container: HTMLElement, data: RequestStateChange) {
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const toolNameLabel = (data.toolName || 'Tool Request').replace(/_/g, ' ');
-    const toolNameBadge = `<div class="tool-badge">${this.ui.escapeHtml(toolNameLabel)}</div>`;
-    
-    let toolMsg = data.message || data.toolData?.message || data.toolData?.question || data.toolData?.summary || data.toolData?.problem_description || '';
-    
-    // Fallback if message is missing but we have Request_Approval data
+
+    let toolMsg = data.message || (data.toolData as any)?.message || (data.toolData as any)?.question
+      || (data.toolData as any)?.summary || (data.toolData as any)?.problem_description || '';
+
     if (!toolMsg && data.toolName === 'Request_Approval' && data.toolData) {
-      toolMsg = `**Action:** ${data.toolData.action_type}\n\n**Impact:** ${data.toolData.impact}\n\n**Justification:** ${data.toolData.justification}`;
+      const td = data.toolData as any;
+      toolMsg = `**Action:** ${td.action_type}\n\n**Impact:** ${td.impact}\n\n**Justification:** ${td.justification}`;
     }
 
-    // Use marked for rich formatting in the header
     let parsedMsg = '';
     try {
-      if (toolMsg) {
-        // Trim to avoid leading/trailing whitespace issues in markdown
-        parsedMsg = marked.parse(toolMsg.trim());
-      }
-    } catch (e) {
+      if (toolMsg) parsedMsg = marked.parse(toolMsg.trim());
+    } catch {
       parsedMsg = this.ui.escapeHtml(toolMsg).replace(/\n/g, '<br>');
     }
 
-    const msgHtml = `<div class="tool-context-header">${toolNameBadge}${parsedMsg}</div>`;
+    const actionsHtml = this.buildActionsHtml(data);
+    const isMultipleChoice = data.toolName === 'Ask_Multiple_Choice' && (data.toolData as any)?.options;
+
+    const row = document.createElement('div');
+    row.className = 'message-row agent tool-bubble';
+    row.id = 'tool-bubble-' + data.requestId;
+
+    row.innerHTML = `
+      <div class="message-info">
+        <span class="sender">Tool: ${this.ui.escapeHtml(toolNameLabel)}</span>
+        <span class="timestamp">${time}</span>
+      </div>
+      <div class="message-bubble">
+        <div class="tool-context-header">
+          <div class="tool-badge">${this.ui.escapeHtml(toolNameLabel)}</div>
+          ${parsedMsg}
+        </div>
+        <div class="tool-chips${isMultipleChoice ? ' multiple-choice-container' : ''}">
+          ${actionsHtml}
+        </div>
+      </div>
+    `;
+
+    container.appendChild(row);
+    container.scrollTop = container.scrollHeight;
+
+    this.attachBubbleEvents(row, data);
+    return row;
+  }
+
+  private buildActionsHtml(data: RequestStateChange): string {
+    const e = (s: string) => this.ui.escapeHtml(s);
 
     if (data.toolName === 'Request_Approval') {
-      container.innerHTML = msgHtml + `
-        <button class="chip primary" id="btn-approve">✅ Approve</button>
-        <button class="chip" id="btn-deny">❌ Deny</button>
-        <button class="chip" id="btn-mod">📝 Approve with changes</button>
-      `;
-      this.attachChipEvents(container, {
-        'btn-approve': '✅ Approved. Proceed with the action.',
-        'btn-deny': '❌ Denied. Please do not proceed.',
-        'btn-mod': 'Approve, but with modifications: '
-      });
-    } else if (data.toolName === 'Report_Completion') {
-      const nextSug = data.toolData?.next_suggestion;
-      const nextBtnLabel = nextSug ? `✅ Proceed: ${nextSug.length > 30 ? nextSug.substring(0, 27) + '...' : nextSug}` : '⏭️ Next step';
-      const nextBtnResponse = nextSug ? `Excellent. Please proceed with: ${nextSug}` : 'Great work! Proceed to the next logical step.';
-
-      container.innerHTML = msgHtml + `
-        <button class="chip primary" id="btn-next">${this.ui.escapeHtml(nextBtnLabel)}</button>
-        <button class="chip" id="btn-refactor">🧹 Refactor</button>
-        <button class="chip" id="btn-tests">🧪 Add tests</button>
-        <button class="chip" id="btn-ux">✨ Polish UX</button>
-        <button class="chip" id="btn-assign">📋 Assign task...</button>
-        <button class="chip" id="btn-done">✅ All done</button>
-      `;
-      this.attachChipEvents(container, {
-        'btn-next': nextBtnResponse,
-        'btn-refactor': 'Review the recent changes and refactor for better architecture and consistency.',
-        'btn-tests': 'Check test coverage for the recent changes and add missing tests.',
-        'btn-ux': 'Review the UI/UX. Suggest and implement improvements or UI delight.',
-        'btn-assign': 'Here is your next task: ',
-        'btn-done': 'All done. You may stop.'
-      });
-    } else if (data.toolName === 'Ask_Oracle') {
-      container.innerHTML = msgHtml + `
-        <button class="chip primary" id="btn-best">✅ Try best solution</button>
-        <button class="chip" id="btn-ignore">⏭️ Ignore & continue</button>
-        <button class="chip" id="btn-instead">🔄 Try instead...</button>
-        <button class="chip" id="btn-fixed">🛠️ Fixed manually</button>
-      `;
-      this.attachChipEvents(container, {
-        'btn-best': 'Proceed with the most likely solution.',
-        'btn-ignore': 'Ignore this error and continue.',
-        'btn-instead': 'Try a different approach: ',
-        'btn-fixed': 'I have fixed the issue manually. Please proceed.'
-      });
-    } else if (data.toolName === 'Ask_Multiple_Choice' && data.toolData?.options) {
-      container.className = 'multiple-choice-container';
-      container.innerHTML = msgHtml;
-      this.renderMultipleChoice(container, data, true);
-    } else {
-      container.innerHTML = msgHtml + this.getDefaultChipsHtml();
-      this.attachDefaultChipEvents(container);
-    }
-  }
-
-  private renderMultipleChoice(container: HTMLElement, data: RequestStateChange, append: boolean = false) {
-    const recommendationId = data.toolData.recommendation;
-    
-    const cardsHtml = data.toolData.options.map((opt: any) => {
-      const isRecommended = opt.id === recommendationId;
-      const cardClass = isRecommended ? 'option-card recommended' : 'option-card';
-      const badge = isRecommended ? '<span class="rec-badge">Recommended</span>' : '';
       return `
-        <button class="${cardClass}" id="opt-${opt.id}">
-          <div class="option-card-title">
-            <span>${this.ui.escapeHtml(opt.id)}. ${this.ui.escapeHtml(opt.title)}</span>
-            ${badge}
-          </div>
-          ${opt.description ? `<div class="option-card-desc">${this.ui.escapeHtml(opt.description)}</div>` : ''}
-        </button>
+        <button class="chip primary" data-response="✅ Approved. Proceed with the action.">✅ Approve</button>
+        <button class="chip" data-response="❌ Denied. Please do not proceed.">❌ Deny</button>
+        <button class="chip" data-response="Approve, but with modifications: ">📝 Approve with changes</button>
       `;
-    }).join('');
-
-    if (append) {
-      container.innerHTML += cardsHtml;
-    } else {
-      container.innerHTML = cardsHtml;
     }
 
-    data.toolData.options.forEach((opt: any) => {
-      const btn = document.getElementById(`opt-${opt.id}`);
-      btn?.addEventListener('click', () => {
-        this.sendChip(`I select option ${opt.id}: ${opt.title}`);
-      });
-    });
-  }
+    if (data.toolName === 'Report_Completion') {
+      const td = data.toolData as any;
+      const nextSug = td?.next_suggestion as string | undefined;
+      const nextBtnLabel = nextSug
+        ? `✅ Proceed: ${nextSug.length > 30 ? nextSug.substring(0, 27) + '...' : nextSug}`
+        : '⏭️ Next step';
+      const nextBtnResponse = nextSug ? `Excellent. Please proceed with: ${nextSug}` : 'Great work! Proceed to the next logical step.';
+      return `
+        <button class="chip primary" data-response="${e(nextBtnResponse)}">${e(nextBtnLabel)}</button>
+        <button class="chip" data-response="Review the recent changes and refactor for better architecture and consistency.">🧹 Refactor</button>
+        <button class="chip" data-response="Check test coverage for the recent changes and add missing tests.">🧪 Add tests</button>
+        <button class="chip" data-response="Review the UI/UX. Suggest and implement improvements or UI delight.">✨ Polish UX</button>
+        <button class="chip" data-response="Here is your next task: ">📋 Assign task...</button>
+        <button class="chip" data-response="All done. You may stop.">✅ All done</button>
+      `;
+    }
 
-  private attachChipEvents(container: HTMLElement, mapping: Record<string, string>) {
-    Object.entries(mapping).forEach(([id, text]) => {
-      const btn = document.getElementById(id);
-      btn?.addEventListener('click', () => this.sendChip(text));
-    });
-  }
+    if (data.toolName === 'Ask_Oracle') {
+      return `
+        <button class="chip primary" data-response="Proceed with the most likely solution.">✅ Try best solution</button>
+        <button class="chip" data-response="Ignore this error and continue.">⏭️ Ignore &amp; continue</button>
+        <button class="chip" data-response="Try a different approach: ">🔄 Try instead...</button>
+        <button class="chip" data-response="I have fixed the issue manually. Please proceed.">🛠️ Fixed manually</button>
+      `;
+    }
 
-  private getDefaultChipsHtml() {
-    return this.state.quickReplyOptions.map((option, index) =>
-      `<button class="chip ${index === 0 ? 'primary' : ''}" id="default-chip-${index}">${this.ui.escapeHtml(option)}</button>`
+    if (data.toolName === 'Ask_Multiple_Choice' && (data.toolData as any)?.options) {
+      const td = data.toolData as any;
+      const recId = td.recommendation;
+      return td.options.map((opt: any) => {
+        const isRec = opt.id === recId;
+        return `
+          <button class="option-card${isRec ? ' recommended' : ''}" data-response="${e(`I select option ${opt.id}: ${opt.title}`)}">
+            <div class="option-card-title">
+              <span>${e(opt.id)}. ${e(opt.title)}</span>
+              ${isRec ? '<span class="rec-badge">Recommended</span>' : ''}
+            </div>
+            ${opt.description ? `<div class="option-card-desc">${e(opt.description)}</div>` : ''}
+          </button>
+        `;
+      }).join('');
+    }
+
+    // Default: quick-reply options
+    return this.state.quickReplyOptions.map((opt, i) =>
+      `<button class="chip ${i === 0 ? 'primary' : ''}" data-response="${e(opt)}">${e(opt)}</button>`
     ).join('');
   }
 
-  private attachDefaultChipEvents(container: HTMLElement) {
-    this.state.quickReplyOptions.forEach((option, index) => {
-      const btn = document.getElementById(`default-chip-${index}`);
-      btn?.addEventListener('click', () => this.sendChip(option));
+  private attachBubbleEvents(bubble: HTMLElement, data: RequestStateChange) {
+    bubble.querySelectorAll<HTMLButtonElement>('[data-response]').forEach(el => {
+      el.addEventListener('click', () => {
+        this.sendBubbleChip(el.dataset.response || '', data.requestId, el, bubble);
+      });
     });
   }
 
-  private sendChip(text: string) {
+  private sendBubbleChip(text: string, requestId: string, clickedChip: HTMLElement, bubble: HTMLElement) {
+    // Mark selected chip and disable all in bubble
+    bubble.querySelectorAll<HTMLButtonElement>('[data-response]').forEach(el => {
+      el.disabled = true;
+    });
+    clickedChip.classList.add('selected');
+    bubble.classList.add('responded');
+
+    // Fill textarea and send
     const input = document.getElementById('messageInput') as HTMLTextAreaElement;
-    const currentText = input.value.trim();
-    if (currentText !== '') {
-      input.value = text + ' ' + currentText;
-    } else {
-      input.value = text;
-    }
+    const currentText = input?.value.trim() || '';
+    if (input) input.value = currentText ? text + ' ' + currentText : text;
+
     this.ui.sendMessage();
     this.clearTimedDecisionTimer();
+  }
+
+  private repopulateQuickReplies() {
+    const chipsContainer = document.getElementById('chipsContainer');
+    if (!chipsContainer) return;
+
+    chipsContainer.innerHTML = this.state.quickReplyOptions
+      .map((opt, i) =>
+        `<button class="chip ${i === 0 ? 'primary' : ''}" data-response="${this.ui.escapeHtml(opt)}">${this.ui.escapeHtml(opt)}</button>`
+      ).join('');
+
+    chipsContainer.querySelectorAll<HTMLButtonElement>('[data-response]').forEach(el => {
+      el.addEventListener('click', () => {
+        const input = document.getElementById('messageInput') as HTMLTextAreaElement;
+        const current = input?.value.trim() || '';
+        if (input) input.value = current ? (el.dataset.response || '') + ' ' + current : (el.dataset.response || '');
+        this.ui.sendMessage();
+        this.clearTimedDecisionTimer();
+      });
+    });
   }
 
   public clearTimedDecisionTimer() {
@@ -220,10 +200,48 @@ export class ToolManager {
     document.getElementById('countdownWrapper')?.remove();
   }
 
-  private startTimedDecisionCountdown(timeoutSeconds: number, defaultActionText: string, label: string) {
+  private evaluateAutoDecisionPolicy(data: RequestStateChange, bubble: HTMLElement) {
+    if (this.state.autoDecisionPolicy === 'manual') return;
+
+    const defaultAction = this.getDefaultActionForTool(data);
+    if (!defaultAction) return;
+
+    if (this.state.autoDecisionPolicy === 'instant') {
+      const chip = bubble.querySelector<HTMLButtonElement>(`[data-response="${this.ui.escapeHtml(defaultAction.text)}"]`);
+      if (chip) chip.click();
+      else {
+        // fallback: send directly
+        this.sendBubbleChip(defaultAction.text + ' (auto-selected instantly)', data.requestId,
+          bubble.querySelector<HTMLButtonElement>('[data-response]') || document.createElement('button'), bubble);
+      }
+    } else if (this.state.autoDecisionPolicy === 'timed') {
+      this.startTimedDecisionCountdown(this.state.autoDecisionTimeout || 120, defaultAction.text, defaultAction.label, bubble, data.requestId);
+    }
+  }
+
+  private getDefaultActionForTool(data: RequestStateChange): { text: string, label: string } | null {
+    if (data.toolName === 'Request_Approval') {
+      return { text: '✅ Approved. Proceed with the action.', label: 'Approve' };
+    } else if (data.toolName === 'Report_Completion') {
+      return { text: 'Great work! Proceed to the next logical step.', label: 'Next Step' };
+    } else if (data.toolName === 'Ask_Oracle') {
+      return { text: 'Proceed with the most likely solution.', label: 'Try Best Solution' };
+    } else if (data.toolName === 'Ask_Multiple_Choice' && (data.toolData as any)?.options) {
+      const td = data.toolData as any;
+      const recId = td.recommendation;
+      const recOpt = td.options.find((o: any) => o.id === recId) || td.options[0];
+      return { text: `I select option ${recOpt.id}: ${recOpt.title}`, label: recOpt.title };
+    } else if (this.state.quickReplyOptions.length > 0) {
+      return { text: this.state.quickReplyOptions[0], label: this.state.quickReplyOptions[0] };
+    }
+    return null;
+  }
+
+  private startTimedDecisionCountdown(timeoutSeconds: number, defaultActionText: string, label: string, bubble: HTMLElement, requestId: string) {
     this.clearTimedDecisionTimer();
-    const chipsContainer = document.getElementById('chipsContainer');
-    if (!chipsContainer) return;
+
+    const messageBubble = bubble.querySelector('.message-bubble');
+    if (!messageBubble) return;
 
     const countdownWrapper = document.createElement('div');
     countdownWrapper.id = 'countdownWrapper';
@@ -233,7 +251,7 @@ export class ToolManager {
       </div>
       <div class="countdown-text" id="countdownText">${timeoutSeconds}s — auto-selecting: <strong>${this.ui.escapeHtml(label)}</strong></div>
     `;
-    chipsContainer.parentElement?.insertBefore(countdownWrapper, chipsContainer.nextSibling);
+    messageBubble.appendChild(countdownWrapper);
 
     let remaining = timeoutSeconds;
     const bar = document.getElementById('countdownBar');
@@ -250,7 +268,14 @@ export class ToolManager {
     }, 1000);
 
     this.timedDecisionTimeout = setTimeout(() => {
-      this.sendChip(defaultActionText + ' (auto-selected after timeout)');
+      const chip = bubble.querySelector<HTMLButtonElement>(`[data-response]`);
+      // Find chip matching the default action text
+      const matchingChip = Array.from(bubble.querySelectorAll<HTMLButtonElement>('[data-response]'))
+        .find(el => el.dataset.response === defaultActionText);
+      const target = matchingChip || chip;
+      if (target && !target.disabled) {
+        this.sendBubbleChip(defaultActionText + ' (auto-selected after timeout)', requestId, target, bubble);
+      }
     }, timeoutSeconds * 1000);
   }
 }

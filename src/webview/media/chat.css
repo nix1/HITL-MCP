@@ -471,3 +471,44 @@ textarea {
   0% { background-color: var(--vscode-foreground); }
   50%, 100% { background-color: rgba(var(--vscode-foreground), 0.2); }
 }
+
+/* --- Tool Bubble (in-history tool call rendering) --- */
+
+.tool-bubble { max-width: 95%; }
+
+.tool-bubble .message-bubble {
+  background-color: var(--vscode-editorWidget-background, var(--vscode-editor-selectionBackground));
+  border: 1px solid var(--vscode-panel-border);
+  border-left: 3px solid var(--vscode-button-background);
+}
+
+.tool-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.tool-chips .chip {
+  white-space: normal;
+  text-align: left;
+}
+
+.chip.selected {
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border-color: var(--vscode-button-background);
+  opacity: 1;
+  cursor: default;
+}
+
+.chip.selected::after { content: ' ✓'; }
+
+.tool-bubble.responded .message-bubble {
+  border-left-color: var(--vscode-charts-green, #4caf50);
+}
+
+.tool-bubble.responded .tool-chips .chip:not(.selected),
+.tool-bubble.responded .tool-chips .option-card:not(.selected) {
+  opacity: 0.35;
+}

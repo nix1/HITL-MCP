@@ -124,11 +124,14 @@ export class UIManager {
     const sendButton = document.getElementById('sendButton') as HTMLButtonElement;
     if (sendButton) sendButton.disabled = !enabled;
 
-    const chips = document.querySelectorAll('.chip') as NodeListOf<HTMLButtonElement>;
-    chips.forEach(c => c.disabled = !enabled);
-
-    const optionCards = document.querySelectorAll('.option-card') as NodeListOf<HTMLButtonElement>;
-    optionCards.forEach(c => c.disabled = !enabled);
+    // Only target chips in the quick-reply bar, not chips inside tool-bubble history entries
+    const chipsContainer = document.getElementById('chipsContainer');
+    if (chipsContainer) {
+      (chipsContainer.querySelectorAll('.chip') as NodeListOf<HTMLButtonElement>)
+        .forEach(c => c.disabled = !enabled);
+      (chipsContainer.querySelectorAll('.option-card') as NodeListOf<HTMLButtonElement>)
+        .forEach(c => c.disabled = !enabled);
+    }
   }
 
   public updateStatusUI(data: ServerStatus) {

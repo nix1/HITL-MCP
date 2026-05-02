@@ -56,8 +56,8 @@ export function getChatWebviewHtml(
 
   // --- Compute initial state ---
   const hasPendingResponse = currentRequestId ? true : false;
-  const chipsHtml = quickReplyOptions.map(option =>
-    `<button class="chip" onclick="sendChip('${escapeHtml(option)}')" ${hasPendingResponse ? '' : 'disabled'}>${escapeHtml(option)}</button>`
+  const chipsHtml = quickReplyOptions.map((option, index) =>
+    `<button class="chip ${index === 0 ? 'primary' : ''}" data-response="${escapeHtml(option)}" ${hasPendingResponse ? '' : 'disabled'}>${escapeHtml(option)}</button>`
   ).join('');
 
   return `<!DOCTYPE html>
