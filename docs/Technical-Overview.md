@@ -1,46 +1,60 @@
 # HITL MCP — Technical Overview
 
-VS Code extension that runs an MCP (Model Context Protocol) server, providing an `HITL_Chat` tool that forces AI assistants to communicate through a human agent interface instead of acting autonomously.
+VS Code extension that runs an MCP server on port 3737, providing a suite of **Human-in-the-Loop tools** that force AI agents to communicate through a human interface instead of acting autonomously.
 
 ## What it does
 
-When an AI assistant calls the `HITL_Chat` tool, it opens a chat session where the human can respond in real-time. This gives you control over the AI workflow — you can approve actions, answer clarifying questions, or redirect the agent before it goes too far.
-
+When an AI agent calls any HITL tool (e.g. `Gate_Close`, `Request_Approval`), the VS Code chat panel and the browser-based HITL Control both show an interactive message bubble. The human clicks a chip or types a response, and the agent continues. This gives you control over the AI workflow — approve actions, answer clarifying questions, review completion reports, or redirect the agent before it goes off-track.
 
 ## How it works
 
-- Extension starts MCP server on port 3737
-- Registers `HITL_Chat` tool with VS Code MCP system
-- AI assistants must use this tool for all interactions
-- Creates persistent chat sessions with message history
-- Provides VS Code webview and browser interfaces for human responses
+1. Extension starts a standalone MCP server process on port 3737.
+2. Registers the HITL tools with VS Code's native MCP system.
+3. When the agent calls a tool, the server creates a pending request and broadcasts it via SSE to all connected clients (VS Code webview and browser).
+4. Human responds → server resolves the pending request → agent receives the response and continues.
+5. All messages are stored in per-session history (50-message FIFO).
 
-## Installation and Setup
+## Interfaces
 
-1. Install the extension in VS Code
-2. Extension activates automatically on startup
-3. MCP server starts and registers with VS Code
-4. Tool becomes available to AI assistants immediately
+**VS Code Panel** — dockable chat panel within VS Code, SSE-connected to the local server.  
+**Browser Control** — `http://localhost:3737/HITL` — multi-session dashboard, auto-discovers all active workspaces.
 
-## Chat Interfaces
+Both interfaces show identical message history. The browser control adds:
+- Sidebar with all active workspace sessions
+- Auto-discovery of sessions registered before or after the page loads
+- Per-session auto-decision timers with cancel buttons
+- Proxy Logs / Rules / Debug panels
 
-**VS Code Panel**: Dockable chat interface within VS Code  
-**Browser Interface**: Available at `http://localhost:3737/HITL`
+## Tool Suite
 
-Both interfaces show the same chat sessions and message history.
+### Gate Completion Tools
 
-## Tool Customization
+| Tool | Purpose |
+|------|---------|
+| `Gate_Start` | Signals task intent and lists expected requirements. |
+| `Gate_Checkpoint` | Intermediate progress report — milestones, risks, blockers. Does not close the task. |
+| `Gate_Close` | Formal task closure. Carries `final_state` (completed/partial/blocked), `requirement_coverage`, `validations`, and `next_suggestion`. |
+| `Gate_Blocked` | Immediate blocker signal — severity, description, what's needed, next unblock step. |
 
-Create `.vscode/HITLOverride.json` to customize tool descriptions and message behavior. This is particularly useful for appending a reminder to every response so the AI stays in the loop:
+### Interaction Tools
+
+| Tool | Purpose |
+|------|---------|
+| `Request_Approval` | Explicit sign-off request with action, impact, and justification. |
+| `Ask_Oracle` | Unblock the agent at an ambiguous error. |
+| `Ask_Multiple_Choice` | Structured option selection with optional recommendation. |
+| `Ask_Human_Expert` | General open-ended question. |
+
+## Tool Customization (HITLOverride.json)
+
+Create `.vscode/HITLOverride.json` to customize tool descriptions and message behaviour:
 
 ```json
 {
   "version": "1.0.0",
-  "description": "Override file for workspace tool configurations",
   "tools": {
-    "HITL_Chat": {
-      "name": "HITL_Chat",
-      "description": "Your custom description here"
+    "Gate_Close": {
+      "description": "MANDATORY: Call this when every task is finished. Include full requirement_coverage."
     }
   },
   "messageSettings": {
@@ -49,17 +63,25 @@ Create `.vscode/HITLOverride.json` to customize tool descriptions and message be
       "autoAppendText": ""
     },
     "toolSpecific": {
-      "HITL_Chat": {
+      "Gate_Close": {
         "autoAppendEnabled": true,
-        "autoAppendText": "Remember to always reply here in this tool unless user suggests otherwise"
+        "autoAppendText": "Always run the full test suite before calling Gate_Close."
       }
     }
+  },
+  "quickReplies": {
+    "enabled": true,
+    "options": ["Ship it! 🚀", "Needs more tests 🧪", "Explain the trade-offs"]
   }
 }
 ```
 
-Changes require VS Code restart to take effect.
+The override file is read on session registration. A VS Code reload is required for changes to take effect.
+
+## Auto-Decision Timer
+
+Both the VS Code panel and the browser control run a configurable countdown (default 120 s). When it expires the primary action chip is auto-clicked. A **✕ Cancel** button on the timer bar pauses this for the current decision. The policy selector in the panel header offers `Timed`, `Manual`, and `Instant` modes.
 
 ## Requirements
 
-VS Code version 1.105.0 or higher with native MCP support.
+VS Code 1.105.0 or higher with native MCP support.

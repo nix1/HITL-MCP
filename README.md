@@ -1,113 +1,128 @@
 # Human-in-the-Loop (HITL) MCP
 
-> **Note:** This is a fork of [3DTek-xyz/HITL-MCP](https://github.com/3DTek-xyz/HITL-MCP) by [Ben Harper](https://github.com/3DTek-xyz). This version includes additional unit tests, telemetry removal, and CI integration.
+> **Note:** This is a fork of [3DTek-xyz/HITL-MCP](https://github.com/3DTek-xyz/HITL-MCP) by [Ben Harper](https://github.com/3DTek-xyz). This version adds structured Gate tools, a production-grade chat UI, multi-workspace web control, and comprehensive tests.
 
-Forces GitHub Copilot to chat with you before acting. Stops runaway agents, reduces wasted API calls, lets you manage multiple workspaces from one interface.
+Forces AI agents to talk to you before acting. Stops runaway agents, surfaces blockers early, and lets you manage multiple workspaces from one browser tab.
 
 ---
 
-## Changes in this version
-
-This version (HITL-MCP) transforms the original human-chat concept into a production-grade **Human-in-the-Loop** framework.
+## What's in this version
 
 | Feature | Details |
 |---------|---------|
-| 🧠 **Structured Tool APIs** | Specialized tools for different interactions: `Request_Approval`, `Ask_Oracle`, and `Report_Completion` (rebranded for better agent reporting). Each uses a strict JSON schema. |
-| ⏱️ **Timed Decisions** | New `Request_Timed_Decision` tool allows agents to suggest a path that **auto-accepts** after a timeout (e.g. 2 minutes) if you're away. |
-| ⚡ **Modernized Webview** | Modular architecture built with **TypeScript & Webpack**. Features high-performance message rendering, real-time SSE connection, and interactive tool chips. |
-| 🌐 **Multi-Workspace** | Manage multiple agents across different VS Code windows. Each workspace session appears as a **separate tab** in the browser interface at `localhost:3737/HITL`. |
-| 🚫 **Zero Telemetry** | All GA4 and tracking code has been completely removed. Your data stays on your machine. |
-| 🧪 **Tested & Stable** | Comprehensive test suite covering tool schemas, session persistence, and core logic. |
-| 🏗️ **Modular Architecture** | Fully refactored service-oriented core. Monolithic 6000-line server split into decoupled modules: `McpHttpServer`, `ToolRegistry`, `ChatManager`, and `ProxyServer`. |
-| 🚀 **5× Faster Builds** | Production VSIX build time reduced from **~60s to ~11s** by replacing terser with the esbuild minifier. Same minified output, ~5× faster iteration. |
+| 🏁 **Gate Completion System** | `Gate_Start`, `Gate_Checkpoint`, `Gate_Close`, `Gate_Blocked` — structured JSON tools that give agents a formal protocol for starting, reporting progress, and closing tasks. |
+| 🔐 **Approval & Oracle Tools** | `Request_Approval` for explicit sign-off on destructive actions; `Ask_Oracle` for unblocking stuck agents; `Ask_Multiple_Choice` for structured option selection. |
+| 💬 **Chat-Like Tool UI** | Tool calls render as natural chat bubbles with sender icons (🏁 🔐 🔮 …). No more dark context-header boxes. Rich structured cards for Gate reports: requirement grid, validation pass/fail, blocker details. |
+| ⏱️ **Auto-Decision Timer** | Both the VS Code panel and the web control run a 120-second countdown that auto-selects the primary action. A **✕ Cancel** button lets you pause and decide manually. |
+| 🌐 **Web HITL Control** | All workspace chats in one browser tab at `http://localhost:3737/HITL`. Sessions are discovered dynamically — opening the page before VS Code starts still works. |
+| ⚡ **Modular Architecture** | TypeScript + Webpack. Decoupled modules: `McpHttpServer`, `ToolRegistry`, `ChatManager`, `ProxyServer`. |
+| 🚀 **5× Faster Builds** | esbuild minifier replaces terser — build time ~11 s instead of ~60 s. |
+| 🧪 **Tested & Stable** | 24 tests covering tool schemas, session persistence, and core logic. |
+| 🚫 **Zero Telemetry** | All tracking code removed. Your data stays on your machine. |
+
 ---
 
 ## Installation
 
 1. Download the latest `.vsix` from [Releases](https://github.com/nix1/HITL-MCP/releases).
-2. Open VS Code, go to Extensions (Ctrl+Shift+X), click the `...` menu, and select **Install from VSIX...**.
-3. Alternatively, build from source:
+2. VS Code → Extensions (Ctrl+Shift+X) → `...` menu → **Install from VSIX…**
+3. Or build from source:
+
 ```bash
 git clone https://github.com/nix1/HITL-MCP.git
 cd HITL-MCP && npm install && npm run package
-# VSIX will be generated in the root directory
 ```
+
+---
 
 ## How to Use
 
 ### Basic Workflow
 
-1. **Ask Copilot to do something** — specify you'd like a reply through HITL Chat
-2. **Chat panel opens** — green dot = connected, shows Copilot's message
-3. **You respond** — type your answer, click Send (or use Quick Replies)
-4. **Copilot continues** — gets your response and proceeds with the task
+1. **Start an AI agent** in any VS Code workspace — the extension registers the HITL tools automatically.
+2. **Agent calls a Gate tool** — the chat panel opens and plays a notification beep.
+3. **You respond** — click a quick-reply chip, or type a custom response and press Enter.
+4. **Agent continues** — receives your response and proceeds.
 
-### VS Code Interface
+### VS Code Chat Panel
 
-**Chat Panel** (left sidebar):
-- 🟢 Green dot = connected to server
-- 🔴 Red dot = disconnected (auto-reconnects)
-- Quick Replies = common responses like "Yes Please Proceed"
-- Text input = always enabled, send button active when Copilot is waiting
+Located in the left sidebar (Activity Bar → HITL icon).
 
-**Status Indicators:**
-- **Server:** 🟢 Running | 🟠 Starting | 🔴 Stopped
-- **Proxy:** 🟢 Enabled | 🟠 Disabled | 🔴 Stopped
+- **🟢 / 🔴 dot** — server connected / disconnected (auto-reconnects)
+- **Quick-reply chips** — one click sends the pre-written response; chips ending with `: ` open the textarea for you to finish the sentence before sending
+- **Auto-decision timer** — counts down to 0, then auto-clicks the primary chip; click **✕ Cancel** to stay in manual mode
+- **Policy selector** — `Timed` (default, 120 s) · `Manual` · `Instant`
+- **⚙️ Cog menu** — Server controls, Proxy controls, session naming, open web view
 
-**Cog Menu (⚙️):**
-- Show Status, Start/Stop/Restart Server
-- Enable/Disable Proxy, Install/Uninstall Proxy Certificate
-- Create Override File, Name This Chat
-- Open Web View, Help & Documentation, Report Issue
+### Web HITL Control
 
-### Web Interface
+Open via cog menu → **Open Web View**, or navigate directly to `http://localhost:3737/HITL`.
 
-Open from cog menu → **Open Web View**
+- All active workspace sessions appear in the left sidebar
+- Sessions are discovered automatically — the page does not need to be refreshed after VS Code starts
+- Each session has its own chat panel, quick-reply bar, and auto-decision timer with cancel
+- Proxy Logs, Rules, and Debug panels on the left
 
-Access all workspace chats in one browser tab at `http://localhost:3737/HITL`
-- See all conversations
-- Switch between workspaces
-- Append reminders to your responses
+---
 
-### Proxy Mode (Advanced)
+## Gate Completion System
 
-Captures and displays HTTP/HTTPS traffic from VS Code for debugging extensions, marketplace requests, or other connections.
+The Gate tools give agents a structured protocol for completing tasks. The AI is expected to call them in order:
 
-**Setup:**
-1. Cog menu → Install Proxy Certificate (follow system prompts)
-2. Cog menu → Enable Proxy
-3. View captured requests in "Proxy Logs" section of web interface
-4. Click any log entry for full request/response details
-5. Add proxy override rules in the "Proxy Rules" tab
+| Tool | When to call | Key fields |
+|------|-------------|------------|
+| `Gate_Start` | Before beginning a multi-step task | `plan_summary`, `expected_requirements` |
+| `Gate_Checkpoint` | At milestones or when surfacing a risk | `checkpoint_type`, `requirement_delta`, `blockers`, `next_expected_step` |
+| `Gate_Close` | When the task is done (or stuck) | `final_state` (completed/partial/blocked), `requirement_coverage`, `validations`, `next_suggestion` |
+| `Gate_Blocked` | Immediate blocker requiring human input | `blocker_details` (severity, description, needed_input, next_unblock_step) |
 
-> **Note:** Enabling the proxy affects all VS Code workspaces.
+**Rich UI for Gate_Close** — the chat bubble shows a structured report card:
+- **Status badge** — ✅ Completed · ⚠️ Partial · 🚫 Blocked
+- **Requirements grid** — each `requirement_id` with ✅/⚠️/❌ and optional evidence reference
+- **Validations list** — each check with pass/warn/fail icon and details
+- **Blocker card** — severity, description, what's needed, next step (displayed prominently in red when `final_state: blocked`)
 
-**Proxy Rules:**
+### Prompt your agent to use the Gate system
+
+Add this to your agent instructions or `.vscode/HITLOverride.json`:
+
+```
+Before starting a task call Gate_Start.
+Report milestones with Gate_Checkpoint.
+When done, call Gate_Close with full requirement coverage.
+If you are blocked, call Gate_Blocked immediately and stop.
+```
+
+---
+
+## Other Tools
+
+| Tool | Purpose |
+|------|---------|
+| `Request_Approval` | Ask for explicit sign-off before a destructive or irreversible action. Shows Action / Impact / Justification. |
+| `Ask_Oracle` | Unblock the agent when it hits an ambiguous error. Offers "Try best solution / Ignore / Try instead… / Fixed manually". |
+| `Ask_Multiple_Choice` | Present a structured set of options. One can be marked as the recommended choice. |
+| `Ask_Human_Expert` | General open-ended question to the human. Falls back to custom quick replies. |
+
+---
+
 ## Tool Customization (HITLOverride.json)
 
-For advanced users, you can create a `.vscode/HITLOverride.json` file in your workspace to fine-tune the AI's behavior. This is highly recommended for professional workflows.
-
-### Configuration Features
-
-- **Tool Overrides**: Change how the AI perceives the `HITL_Chat` tool by providing a custom description. This is useful for giving the AI specific instructions on when or how to use the tool in your project.
-- **Message Reminders**: Automatically append a "reminder" string to every message you send back to the AI. This effectively "reminds" the AI of its role in every turn.
-- **Custom Quick Replies**: Replace the default "Yes Please Proceed" buttons with responses tailored to your team's workflow.
-
-### Example Configuration
+Create `.vscode/HITLOverride.json` to tailor the AI's behavior for your project:
 
 ```json
 {
   "version": "1.0.0",
   "tools": {
-    "HITL_Chat": {
-      "description": "MANDATORY: Use this tool for all discussions and before any destructive actions."
+    "Gate_Close": {
+      "description": "MANDATORY: Call this when every task is finished. Include full requirement_coverage."
     }
   },
   "messageSettings": {
     "toolSpecific": {
-      "HITL_Chat": {
+      "Gate_Close": {
         "autoAppendEnabled": true,
-        "autoAppendText": "Remember to follow the project style guide and keep tests updated."
+        "autoAppendText": "Always run the full test suite before calling Gate_Close."
       }
     }
   },
@@ -125,53 +140,46 @@ For advanced users, you can create a `.vscode/HITLOverride.json` file in your wo
 
 ---
 
-## Proxy Mode (Advanced)
+## Proxy Mode
 
-Proxy Mode allows you to capture, inspect, and modify HTTP/HTTPS traffic originating from VS Code. This is particularly useful for debugging extension behavior or intercepting AI agent requests.
+Captures and optionally transforms HTTP/HTTPS traffic from VS Code — useful for debugging AI requests or enforcing policies.
 
-### Key Capabilities
+**Setup:**
+1. Cog menu → **Install Proxy Certificate**
+2. Cog menu → **Enable Proxy**
+3. View captured traffic in the web interface under **Proxy Logs**
+4. Add rules under **Proxy Rules** — URL pattern matching with JSONata transforms, redirects, or request dropping
 
-- **Traffic Inspection**: View full request/response payloads in the Web Interface.
-- **Request Transformation**: Use **JSONata** expressions to modify requests on the fly (e.g., changing system prompts or stripping headers).
-- **Redirection**: Send requests to a different endpoint (e.g., redirecting production API calls to a local mock server).
-- **Blocking**: Drop specific requests based on URL patterns.
-
-### JSONata Rule Builder
-
-For complex interceptors, use the visual **JSONata Rule Builder** at `http://localhost:3737/jsonata-rule-builder.html`. 
-- It allows you to build data transformation rules (e.g., "replace user prompts with X") using a GUI.
-- You can test your rules against sample JSON before applying them to the Proxy.
-
-See [docs/JSONata.md](docs/JSONata.md) for a deep dive.
+See [docs/Proxy.md](docs/Proxy.md) and [docs/JSONata.md](docs/JSONata.md) for details.
 
 ---
 
 ## Documentation
 
-Detailed information is available in the `docs/` directory:
-
-- [🚀 Installation & Setup](docs/Technical-Overview.md)
 - [🏗️ Architecture & Development](docs/Architecture.md)
+- [🚀 Technical Overview](docs/Technical-Overview.md)
 - [🛡️ Proxy Mode & Interceptors](docs/Proxy.md)
 - [🎯 JSONata Rule Builder](docs/JSONata.md)
-- [⚙️ HITLOverride.json Customization](docs/Technical-Overview.md#tool-customization)
 
 ---
 
 ## Troubleshooting
 
+**Web control shows "No active sessions":**
+- The page discovers sessions automatically on load. If it still shows empty, wait a few seconds and the session should appear — VS Code registers the session asynchronously at startup.
+- If the problem persists, reload the page once VS Code has fully started.
+
 **Red dot / disconnected:**
-- Cog menu → Start Server
+- Cog menu → **Start Server**
 - Check VS Code Output panel for errors
-- Restart VS Code
 
-**Server won't start:**
-- Check port 3737 not in use: `lsof -i :3737`
-- Try manually restarting from cog menu
+**Agent not using Gate tools:**
+- Add a system prompt or project rule telling the agent to call `Gate_Start` at the beginning and `Gate_Close` when done.
+- Or add a `HITLOverride.json` with a custom tool description (see above).
 
-**Copilot not using the tool:**
-- Tool registers automatically on startup
-- Try: "Use HITL_Chat to discuss this with me"
+**Auto-timer fires too quickly:**
+- Switch the policy selector in the VS Code panel header from `Timed` to `Manual`.
+- Or click **✕ Cancel** on any individual timer to pause that one decision.
 
 ---
 
@@ -179,23 +187,22 @@ Detailed information is available in the `docs/` directory:
 
 ```bash
 npm install
-npm run compile        # webpack build
-npm run test:unit      # unit tests (18 tests, no VS Code required)
-npm run lint           # eslint
+npm run compile     # webpack build
+npm test            # full test suite (24 tests)
+npm run lint        # eslint
 # Press F5 in VS Code to debug — dev mode uses port 3738
 ```
 
+---
+
 ## Privacy
 
-- **Extension Privacy**: This extension contains **no telemetry**. We do not collect or send your conversation data, workspace paths, or usage patterns to any external servers.
-- **Copilot Telemetry**: Please note that **GitHub Copilot itself** collects its own telemetry. While this extension does not add any tracking, it does not stop Copilot's native telemetry unless you specifically enable the "Block GitHub Copilot Telemetry" rule in **Proxy Mode**.
+This extension contains **no telemetry**. No conversation data, workspace paths, or usage patterns are sent anywhere. GitHub Copilot's own telemetry is separate — use the Proxy Rules to block it if needed.
+
+---
 
 ## Credits
 
 - **Original project:** [3DTek-xyz/HITL-MCP](https://github.com/3DTek-xyz/HITL-MCP) by [Ben Harper](https://github.com/3DTek-xyz)
 - **Original article:** [Stop the AI Chaos](https://medium.com/@harperbenwilliam/stop-the-ai-chaos-why-human-in-the-loop-beats-fully-autonomous-coding-agents-eeb0ae17fde9) on Medium
-- **License:** [GNU General Public License v3](LICENSE.md) (same as upstream)
-
-## More Info
-
-Feel free to browse the [docs/](docs/) folder for more specific guides.
+- **License:** [GNU General Public License v3](LICENSE.md)
