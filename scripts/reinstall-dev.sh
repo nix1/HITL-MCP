@@ -11,6 +11,8 @@
 #                       Still requires: Ctrl+Shift+P → Developer: Reload Window
 #
 # Port override:  HITL_PORT=3738 npm run dev   (dev host uses 3738)
+# Pin editor CLI: CODE_CLI="/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code" npm run reinstall
+#                 (avoids the prompt when multiple editors are installed)
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -21,13 +23,28 @@ VERSION=$(node -p "require('./package.json').version")
 PID_FILE="dist/.hitl-mcp-server.pid"
 
 # ── Find the VS Code / editor CLI ─────────────────────────────────────────────
-# Searches PATH first, then common macOS app bundle locations.
+# Resolution order:
+#   1. CODE_CLI env var  (always wins — set it to pin a specific editor)
+#   2. 'code' on PATH    (works if "Install 'code' command in PATH" was run)
+#   3. Known macOS .app bundle locations
+#
+# If multiple app-bundle CLIs are found they are listed and you are asked to
+# choose, OR you can skip the prompt by setting CODE_CLI in advance:
+#   CODE_CLI="/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code" npm run reinstall
 find_code_cli() {
-  # 1. PATH
+  # 1. Explicit override
+  if [ -n "${CODE_CLI:-}" ]; then
+    if [ -x "$CODE_CLI" ] || command -v "$CODE_CLI" >/dev/null 2>&1; then
+      echo "$CODE_CLI"; return
+    fi
+    echo "⚠️  CODE_CLI='${CODE_CLI}' is not executable — ignoring." >&2
+  fi
+
+  # 2. PATH
   if command -v code >/dev/null 2>&1; then echo "code"; return; fi
 
-  # 2. Known macOS .app bundles (VS Code, Insiders, Cursor, Windsurf, Positron…)
-  local candidates=(
+  # 3. Known macOS .app bundle locations
+  local all_candidates=(
     "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"
     "/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code"
     "/Applications/Cursor.app/Contents/Resources/app/bin/code"
@@ -37,9 +54,33 @@ find_code_cli() {
     "$HOME/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code"
     "$HOME/Applications/Cursor.app/Contents/Resources/app/bin/code"
   )
-  for c in "${candidates[@]}"; do
-    if [ -x "$c" ]; then echo "$c"; return; fi
+  local found=()
+  for c in "${all_candidates[@]}"; do
+    [ -x "$c" ] && found+=("$c")
   done
+
+  case ${#found[@]} in
+    0) return ;;          # nothing found
+    1) echo "${found[0]}"; return ;;  # exactly one — use it silently
+  esac
+
+  # Multiple editors found — ask which one to use
+  echo "" >&2
+  echo "Multiple editors found. Which CLI should be used to install the extension?" >&2
+  local i=1
+  for c in "${found[@]}"; do
+    printf "  %d) %s\n" "$i" "$c" >&2
+    (( i++ ))
+  done
+  printf "  Enter number [1]: " >&2
+  local choice
+  read -r choice </dev/tty
+  choice=${choice:-1}
+  if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "${#found[@]}" ]; then
+    echo "${found[$((choice-1))]}"
+  else
+    echo "${found[0]}"  # default to first on invalid input
+  fi
 }
 
 # ── 1. Build ──────────────────────────────────────────────────────────────────

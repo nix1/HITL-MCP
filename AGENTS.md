@@ -25,7 +25,9 @@ The server (`dist/mcpStandalone.js`) is a separate process from the extension ho
 | `src/extension.ts`, `package.json`, webview provider | `npm run reinstall` | Full VSIX build + kills server + `code --install-extension`; then reload each VS Code window (`Ctrl+Shift+P → Developer: Reload Window`) |
 
 `scripts/reinstall-dev.sh` uses `POST /shutdown` (graceful) → PID file → `lsof` port kill, in that order.  
-Override port: `HITL_PORT=3738 npm run dev` (dev host uses 3738).
+Override port: `HITL_PORT=3738 npm run dev` (dev host uses 3738).  
+If multiple editors are installed the script prompts you to choose. Pin one permanently:
+`CODE_CLI="/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code" npm run reinstall`
 
 ## Architecture
 
