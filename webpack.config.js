@@ -4,7 +4,13 @@
 
 const path = require('path');
 const webpack = require('webpack');
+const { EsbuildPlugin } = require('esbuild-loader');
 const packageJson = require('./package.json');
+
+const esbuildMinimizer = {
+  minimize: true,
+  minimizer: [new EsbuildPlugin({ target: 'es2022' })],
+};
 
 //@ts-check
 /** @typedef {import('webpack').Configuration} WebpackConfig **/
@@ -46,6 +52,7 @@ const extensionConfig = {
     ]
   },
   devtool: 'nosources-source-map',
+  optimization: esbuildMinimizer,
   infrastructureLogging: {
     level: "log", // enables logging required for problem matchers
   },
@@ -89,6 +96,7 @@ const mcpServerConfig = {
     })
   ],
   devtool: 'nosources-source-map',
+  optimization: esbuildMinimizer,
   infrastructureLogging: {
     level: "log",
   },
@@ -124,6 +132,7 @@ const webviewClientConfig = {
     ]
   },
   devtool: 'nosources-source-map',
+  optimization: esbuildMinimizer,
 };
 
 module.exports = [ extensionConfig, mcpServerConfig, webviewClientConfig ];
