@@ -83,8 +83,7 @@ const boot = async () => {
         state: 'waiting_for_response',
         toolName: pending.toolName,
         toolData: pending,
-        message: pending.message || pending.question || pending.summary || pending.problem_description,
-        timestamp: new Date().toISOString()
+        message: pending.message || pending.question || pending.summary || pending.problem_description
       });
     }
   }

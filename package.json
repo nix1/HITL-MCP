@@ -87,7 +87,8 @@
           "id": "hitl-mcp.chatView",
           "name": "Chat",
           "when": "true",
-          "icon": "$(comment)"
+          "icon": "$(comment)",
+          "retainContextWhenHidden": true
         }
       ]
     },

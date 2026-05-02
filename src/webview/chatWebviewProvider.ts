@@ -75,8 +75,7 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
     this._view = webviewView;
     webviewView.webview.options = {
       enableScripts: true,
-      localResourceRoots: [this._extensionUri, vscode.Uri.joinPath(this._extensionUri, 'dist'), vscode.Uri.joinPath(this._extensionUri, 'src', 'webview', 'media')],
-      retainContextWhenHidden: true
+      localResourceRoots: [this._extensionUri, vscode.Uri.joinPath(this._extensionUri, 'dist'), vscode.Uri.joinPath(this._extensionUri, 'src', 'webview', 'media')]
     };
 
     if (this.registrationCheckComplete) this.updateWebview();

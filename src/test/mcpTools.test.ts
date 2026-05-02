@@ -14,13 +14,13 @@ suite('McpTools Test Suite', () => {
     test('All expected default tools are registered', () => {
         const tools = (server as any).tools as Map<string, any>;
         const expectedTools = [
-            'HITL_Chat',
+            'Ask_Human_Expert',
             'Ask_Oracle',
             'Report_Completion',
             'Request_Approval',
             'Ask_Multiple_Choice'
         ];
-        
+
         for (const name of expectedTools) {
             assert.ok(tools.has(name), `Tool '${name}' should be registered`);
         }
