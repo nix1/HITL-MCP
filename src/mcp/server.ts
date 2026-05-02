@@ -204,7 +204,16 @@ export class McpServer extends EventEmitter implements IMcpServer {
       this.initializeSessionTools(sessionId, workspacePath);
     }
     
-    this.sendToWebInterface('session-registered', { sessionId, totalSessions: this.activeSessions.size });
+    // Resolve display info now (after overrideData is applied) so the web UI
+    // can render the session properly when it receives this event dynamically.
+    const resolvedWorkspaceRoot = this.sessionWorkspacePaths.get(sessionId);
+    const friendlyName = this.sessionNames.get(sessionId);
+    const messageSettings = this.sessionMessageSettings.get(sessionId);
+    let quickReplyOptions: string[] = ['Yes Please Proceed', 'Explain in more detail please'];
+    if (messageSettings?.quickReplies?.options) quickReplyOptions = messageSettings.quickReplies.options;
+    const title = friendlyName || (resolvedWorkspaceRoot ? path.basename(resolvedWorkspaceRoot) : `Session ${sessionId.substring(0, 8)}`);
+
+    this.sendToWebInterface('session-registered', { sessionId, title, quickReplyOptions, totalSessions: this.activeSessions.size });
   }
 
   public unregisterSession(sessionId: string): void {

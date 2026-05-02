@@ -458,24 +458,33 @@ function getQReplies(sid){
 
 function addSessionToUI(sid, title, qrOpts) {
   if(document.querySelector('[data-session="'+sid+'"]')) return;
-  if(!__S__.find(s=>s.id===sid)) __S__.push({id:sid, title:title||'Session '+sid.substring(0,8), quickReplyOptions:qrOpts||['Yes Please Proceed','Explain in more detail please']});
+  const label = title||'Session '+sid.substring(0,8);
+  if(!__S__.find(s=>s.id===sid)) __S__.push({id:sid, title:label, quickReplyOptions:qrOpts||['Yes Please Proceed','Explain in more detail please']});
   document.getElementById('panel-no-sessions')?.remove();
 
   const nav = document.getElementById('session-nav');
+  // Remove the static "No active sessions" placeholder text if present
+  const placeholder=nav?.querySelector('div:not(.nav-item)');
+  if(placeholder) placeholder.remove();
+
   const item = document.createElement('div');
   item.className='nav-item session-item';
   item.dataset.panel = 'session-'+sid;
   item.dataset.session = sid;
-  item.innerHTML = \`<span class="session-dot dot-idle" id="dot-\${sid}"></span><span class="nav-label">\${esc(title||'Session '+sid.substring(0,8))}</span><span class="notif-badge" id="badge-\${sid}" style="display:none"></span>\`;
+  item.innerHTML = \`<span class="session-dot dot-idle" id="dot-\${sid}"></span><span class="nav-label">\${esc(label)}</span><span class="notif-badge" id="badge-\${sid}" style="display:none"></span>\`;
   item.addEventListener('click',()=>switchTo('session-'+sid));
   nav.appendChild(item);
+
+  // Check before inserting the panel whether any chat panel exists.
+  // If none did (first session, or after the last session was removed), auto-switch.
+  const hadChatPanels = document.querySelector('.panel.chat-panel') !== null;
 
   const panel = document.createElement('div');
   panel.className='panel chat-panel';
   panel.id='panel-session-'+sid;
   panel.dataset.session=sid;
   panel.innerHTML=\`
-    <div class="chat-header"><span class="chat-title">\${esc(title)}</span><span class="chat-status" id="chat-status-\${sid}">Waiting for agent…</span></div>
+    <div class="chat-header"><span class="chat-title">\${esc(label)}</span><span class="chat-status" id="chat-status-\${sid}">Waiting for agent…</span></div>
     <div class="messages" id="messages-\${sid}"><div class="empty-state">Loading conversation…</div></div>
     <div class="composer-area">
       <div class="chips-row" id="chips-\${sid}"></div>
@@ -488,7 +497,13 @@ function addSessionToUI(sid, title, qrOpts) {
     </div>\`;
   document.getElementById('content').insertBefore(panel, document.getElementById('panel-proxy-logs'));
   wireInput(panel, sid);
-  if(document.querySelectorAll('.panel.active').length===0) switchTo('session-'+sid);
+
+  // Auto-switch rules:
+  //  1. No panel is currently active (just cleared panel-no-sessions).
+  //  2. There were no chat panels before this one — i.e. this is the first/only session
+  //     being added. This covers the re-register cycle: session-unregistered moves the
+  //     user to proxy-logs; session-registered should bring them back.
+  if(!hadChatPanels || document.querySelectorAll('.panel.active').length===0) switchTo('session-'+sid);
   loadSession(sid);
 }
 
@@ -865,6 +880,20 @@ async function loadSession(sid){
 
 async function loadAll(){ for(const s of __S__) await loadSession(s.id); }
 
+// ── Session discovery ─────────────────────────────────────────────────────────
+// Fetches the live session list from the server and adds any sessions that are
+// not yet in __S__ (e.g. sessions registered before the page loaded, or sessions
+// that registered while the SSE connection was down).
+async function discoverSessions(){
+  try{
+    const r=await fetch('/sessions');
+    const d=await r.json();
+    for(const s of (d.sessions||[])){
+      if(!__S__.find(x=>x.id===s.id)) addSessionToUI(s.id,s.name,s.quickReplyOptions||null);
+    }
+  }catch(e){}
+}
+
 // ── SSE ────────────────────────────────────────────────────────────────────────
 function connStatus(ok){
   const dot=document.getElementById('connDot');
@@ -876,7 +905,7 @@ function connStatus(ok){
 function setupSSE(){
   if(sseObj){try{sseObj.close();}catch(e){}}
   sseObj = new EventSource('/mcp?clientType=web');
-  sseObj.onopen=()=>{reconnect=0;connStatus(true);loadAll();};
+  sseObj.onopen=()=>{reconnect=0;connStatus(true);discoverSessions().then(()=>loadAll());};
   sseObj.onmessage=e=>{
     try{dispatch(JSON.parse(e.data));}catch(err){console.error(err);}
   };
@@ -1107,6 +1136,7 @@ function stopDebugPoll(){if(debugPoll){clearInterval(debugPoll);debugPoll=null;}
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 async function init(){
+  await discoverSessions(); // Discover sessions registered before this page loaded
   await loadAll();
   await loadProxyLogs();
   await loadRules();

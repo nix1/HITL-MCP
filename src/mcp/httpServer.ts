@@ -297,9 +297,11 @@ export class McpHttpServer {
         res.end(JSON.stringify({ success: true, sessionId }));
       } catch (e) { res.statusCode = 400; res.end(JSON.stringify({ success: false })); }
     } else if (req.method === 'GET' && url.pathname === '/sessions') {
-      const sessions = this.server.getActiveSessions().map(id => ({
-        id, name: this.server.sessionNames.get(id) || 'Unnamed Session', workspacePath: this.server.sessionWorkspacePaths.get(id)
-      }));
+      const sessions = this.server.getActiveSessions().map(id => {
+        const messageSettings = this.server.sessionMessageSettings.get(id);
+        const quickReplyOptions = messageSettings?.quickReplies?.options || ['Yes Please Proceed', 'Explain in more detail please'];
+        return { id, name: this.server.sessionNames.get(id) || 'Unnamed Session', workspacePath: this.server.sessionWorkspacePaths.get(id), quickReplyOptions };
+      });
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ sessions }));
     } else if (req.method === 'POST' && url.pathname === '/sessions/name') {
