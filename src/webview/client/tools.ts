@@ -70,7 +70,8 @@ export class ToolManager {
   }
 
   private renderChips(container: HTMLElement, data: RequestStateChange) {
-    const toolNameBadge = `<div class="tool-badge">${this.ui.escapeHtml(data.toolName || 'Tool Request')}</div>`;
+    const toolNameLabel = (data.toolName || 'Tool Request').replace(/_/g, ' ');
+    const toolNameBadge = `<div class="tool-badge">${this.ui.escapeHtml(toolNameLabel)}</div>`;
     
     let toolMsg = data.message || data.toolData?.message || data.toolData?.question || data.toolData?.summary || data.toolData?.problem_description || '';
     
@@ -83,9 +84,8 @@ export class ToolManager {
     let parsedMsg = '';
     try {
       if (toolMsg) {
-        // Use parseInline for simpler rendering without <p> wraps if possible, 
-        // or just parse and we'll fix the CSS
-        parsedMsg = marked.parse(toolMsg);
+        // Trim to avoid leading/trailing whitespace issues in markdown
+        parsedMsg = marked.parse(toolMsg.trim());
       }
     } catch (e) {
       parsedMsg = this.ui.escapeHtml(toolMsg).replace(/\n/g, '<br>');

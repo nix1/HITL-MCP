@@ -150,7 +150,7 @@ export class McpServer extends EventEmitter implements IMcpServer {
     }
     
     if (activeToolName === 'Request_Approval') {
-      messageBody = `**Action:** ${params.action_type}\n**Impact:** ${params.impact}\n**Justification:** ${params.justification}`;
+      messageBody = `**Action:** ${params.action_type}\n\n**Impact:** ${params.impact}\n\n**Justification:** ${params.justification}`;
     }
 
     let displayMessage = params.context ? `${params.context}\n\n${messageBody}` : messageBody;
