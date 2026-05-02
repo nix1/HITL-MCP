@@ -232,6 +232,16 @@ body {
   background: var(--vscode-editor-background);
   border-radius: 6px;
   border: 1px solid var(--vscode-panel-border);
+  word-break: break-word;
+}
+
+.tool-context-header p {
+  margin: 0;
+  padding: 0;
+}
+
+.tool-context-header strong {
+  color: var(--vscode-symbolIcon-propertyForeground);
 }
 
 .multiple-choice-container {

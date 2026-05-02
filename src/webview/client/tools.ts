@@ -74,14 +74,24 @@ export class ToolManager {
     
     let toolMsg = data.message || data.toolData?.message || data.toolData?.question || data.toolData?.summary || data.toolData?.problem_description || '';
     
-    if (data.toolName === 'Request_Approval') {
-      toolMsg = `**Action:** ${data.toolData?.action_type}\n\n**Impact:** ${data.toolData?.impact}\n\n**Justification:** ${data.toolData?.justification}`;
-    } else if (data.toolName === 'Report_Completion' && data.toolData?.summary) {
-       toolMsg = `**Summary:** ${data.toolData.summary}${data.toolData.next_suggestion ? `\n\n**Next Suggestion:** ${data.toolData.next_suggestion}` : ''}`;
+    // Fallback if message is missing but we have Request_Approval data
+    if (!toolMsg && data.toolName === 'Request_Approval' && data.toolData) {
+      toolMsg = `**Action:** ${data.toolData.action_type}\n\n**Impact:** ${data.toolData.impact}\n\n**Justification:** ${data.toolData.justification}`;
     }
 
     // Use marked for rich formatting in the header
-    const msgHtml = toolMsg ? `<div class="tool-context-header">${toolNameBadge}${marked.parse(toolMsg)}</div>` : toolNameBadge;
+    let parsedMsg = '';
+    try {
+      if (toolMsg) {
+        // Use parseInline for simpler rendering without <p> wraps if possible, 
+        // or just parse and we'll fix the CSS
+        parsedMsg = marked.parse(toolMsg);
+      }
+    } catch (e) {
+      parsedMsg = this.ui.escapeHtml(toolMsg).replace(/\n/g, '<br>');
+    }
+
+    const msgHtml = `<div class="tool-context-header">${toolNameBadge}${parsedMsg}</div>`;
 
     if (data.toolName === 'Request_Approval') {
       container.innerHTML = msgHtml + `
