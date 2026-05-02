@@ -530,6 +530,8 @@ function addMsg(sid, role, content, source, timestamp){
 }
 
 // ── Tool bubbles ──────────────────────────────────────────────────────────────
+const TOOL_ICONS_WEB={Gate_Start:'🎯',Gate_Checkpoint:'📊',Gate_Close:'🏁',Gate_Blocked:'🚫',Request_Approval:'🔐',Ask_Oracle:'🔮',Ask_Multiple_Choice:'🔀',Ask_Human_Expert:'💬'};
+
 function toolActionsHtml(sid, data){
   const e=esc;
   const tn=data.toolName;
@@ -538,17 +540,21 @@ function toolActionsHtml(sid, data){
     <button class="chip primary" data-r="✅ Approved. Proceed with the action.">✅ Approve</button>
     <button class="chip" data-r="❌ Denied. Please do not proceed.">❌ Deny</button>
     <button class="chip" data-r="Approve, but with modifications: ">📝 Modify…</button>\`;
-  if(tn==='Report_Completion'){
+  if(tn==='Gate_Close'||tn==='Gate_Checkpoint'||tn==='Gate_Start'){
     const ns=td.next_suggestion;
-    const nl=ns?('✅ Proceed: '+(ns.length>28?ns.slice(0,26)+'…':ns)):'⏭️ Continue';
-    const nr=ns?'Excellent. Please proceed with: '+ns:'Great work! Proceed to the next logical step.';
+    const nl=ns?('✅ Proceed: '+(ns.length>28?ns.slice(0,26)+'…':ns)):(tn==='Gate_Close'?'🏁 Close Turn':'⏭️ Proceed');
+    const nr=ns?'Excellent. Please proceed with: '+ns:(tn==='Gate_Close'?'Turn closed and report accepted.':'Proceeding with the next step.');
     return \`<button class="chip primary" data-r="\${e(nr)}">\${e(nl)}</button>
-             <button class="chip" data-r="Review the recent changes and refactor for better architecture and consistency.">🧹 Refactor</button>
-             <button class="chip" data-r="Check test coverage for the recent changes and add missing tests.">🧪 Tests</button>
-             <button class="chip" data-r="Review the UI/UX. Suggest and implement improvements.">✨ Polish UX</button>
-             <button class="chip" data-r="Here is your next task: ">📋 Assign…</button>
-             <button class="chip" data-r="All done. You may stop.">✅ Done</button>\`;
+      <button class="chip" data-r="Review the recent changes and refactor for better architecture and consistency.">🧹 Refactor</button>
+      <button class="chip" data-r="Check test coverage for the recent changes and add missing tests.">🧪 Tests</button>
+      <button class="chip" data-r="Review the UI/UX. Suggest and implement improvements.">✨ Polish UX</button>
+      <button class="chip" data-r="Here is your next task: ">📋 Assign…</button>
+      \${tn==='Gate_Close'?'<button class="chip" data-r="I am not satisfied with the results. Please fix: ">❌ Needs work</button>':''}\`;
   }
+  if(tn==='Gate_Blocked') return \`
+    <button class="chip primary" data-r="I will help you unblock this. Please provide: ">🙋 Provide info</button>
+    <button class="chip" data-r="Try a different approach that doesn't depend on this blocker: ">🔄 Change approach</button>
+    <button class="chip" data-r="Ignore this blocker for now and focus on other tasks.">⏭️ Ignore &amp; skip</button>\`;
   if(tn==='Ask_Oracle') return \`
     <button class="chip primary" data-r="Proceed with the most likely solution.">✅ Try best solution</button>
     <button class="chip" data-r="Ignore this error and continue.">⏭️ Ignore</button>
@@ -566,12 +572,72 @@ function toolActionsHtml(sid, data){
   return getQReplies(sid).map((r,i)=>\`<button class="chip\${i===0?' primary':''}" data-r="\${e(r)}">\${e(r)}</button>\`).join('');
 }
 
+function gateReportHtml(data){
+  const td=data.toolData||{};
+  const tn=data.toolName;
+  let html='';
+
+  if(tn==='Gate_Close'&&td.final_state){
+    const colors={completed:'var(--green)',partial:'var(--orange)',blocked:'var(--red)'};
+    const icons={completed:'✅',partial:'⚠️',blocked:'🚫'};
+    const c=colors[td.final_state]||'var(--muted)';
+    const ic=icons[td.final_state]||'📋';
+    html+=\`<div style="display:inline-flex;align-items:center;gap:4px;margin-bottom:8px;padding:2px 9px;border-radius:4px;background:\${c}22;border:1px solid \${c}55;font-size:11px;font-weight:700;text-transform:uppercase;color:\${c}">\${ic} \${esc(td.final_state)}</div>\`;
+  }
+
+  const reqs=td.requirement_coverage||(tn==='Gate_Checkpoint'?td.requirement_delta:null)||[];
+  if(reqs.length){
+    const covered=reqs.filter(r=>r.status==='covered').length;
+    const secTitle=tn==='Gate_Checkpoint'?'Progress':'Requirements';
+    html+=\`<div style="margin:8px 0">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700;margin-bottom:4px">\${secTitle} <span style="background:var(--accent);color:#fff;border-radius:8px;padding:1px 6px;font-size:9px">\${covered}/\${reqs.length}</span></div>\`;
+    reqs.forEach(r=>{
+      const ic=r.status==='covered'?'✅':r.status==='partial'?'⚠️':(tn==='Gate_Checkpoint'?'🔄':'❌');
+      html+=\`<div style="display:flex;align-items:center;gap:5px;font-size:11px;margin:2px 0">\${ic} <code style="font-size:10px;background:rgba(0,0,0,.25);padding:1px 4px;border-radius:3px">\${esc(r.requirement_id)}</code>\${r.evidence_ref?'<span style="font-size:10px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(r.evidence_ref)+'</span>':''}</div>\`;
+    });
+    html+='</div>';
+  }
+
+  if(tn==='Gate_Start'&&td.expected_requirements?.length){
+    html+=\`<div style="margin:8px 0">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700;margin-bottom:4px">Expected Requirements <span style="background:var(--accent);color:#fff;border-radius:8px;padding:1px 6px;font-size:9px">\${td.expected_requirements.length}</span></div>\`;
+    td.expected_requirements.forEach(r=>{
+      html+=\`<div style="display:flex;align-items:center;gap:5px;font-size:11px;margin:2px 0">📋 <code style="font-size:10px;background:rgba(0,0,0,.25);padding:1px 4px;border-radius:3px">\${esc(r)}</code></div>\`;
+    });
+    html+='</div>';
+  }
+
+  const vals=td.validations||[];
+  if(vals.length){
+    const passed=vals.filter(v=>v.result==='pass').length;
+    html+=\`<div style="margin:8px 0">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700;margin-bottom:4px">Validations <span style="background:var(--accent);color:#fff;border-radius:8px;padding:1px 6px;font-size:9px">\${passed}/\${vals.length}</span></div>\`;
+    vals.forEach(v=>{
+      const ic=v.result==='pass'?'✅':v.result==='warn'?'⚠️':'❌';
+      html+=\`<div style="display:flex;align-items:center;gap:5px;font-size:11px;margin:2px 0">\${ic} <code style="font-size:10px;background:rgba(0,0,0,.25);padding:1px 4px;border-radius:3px">\${esc(v.check_id)}</code>\${v.details?'<span style="font-size:10px;color:var(--muted)"> — '+esc(v.details)+'</span>':''}</div>\`;
+    });
+    html+='</div>';
+  }
+
+  const b=td.blocker_details||(td.final_state==='blocked'?td.blocker:null);
+  if(b){
+    html+=\`<div style="margin:8px 0;padding:8px 10px;background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.3);border-radius:6px">
+      <div style="font-weight:700;color:var(--red);font-size:11px;margin-bottom:4px">🚫 \${esc(b.severity?.toUpperCase()||'BLOCKED')}</div>
+      \${b.description?'<div style="font-size:12px;margin-bottom:4px">'+esc(b.description)+'</div>':''}
+      \${b.needed_input?'<div style="font-size:11px;margin-top:3px">💡 <strong>Needed:</strong> '+esc(b.needed_input)+'</div>':''}
+      \${b.next_unblock_step?'<div style="font-size:11px;margin-top:3px">👣 <strong>Next:</strong> '+esc(b.next_unblock_step)+'</div>':''}
+    </div>\`;
+  }
+  return html;
+}
+
 function renderToolBubble(sid, data){
   const c = document.getElementById('messages-'+sid);
   if(!c) return null;
   c.querySelector('.empty-state')?.remove();
   c.querySelector('.typing-indicator')?.remove();
 
+  const icon=TOOL_ICONS_WEB[data.toolName]||'🔧';
   const tn = (data.toolName||'Tool Request').replace(/_/g,' ');
   let msg = data.message||data.toolData?.message||data.toolData?.question||data.toolData?.summary||data.toolData?.problem_description||'';
   if(!msg&&data.toolName==='Request_Approval'&&data.toolData){
@@ -581,16 +647,20 @@ function renderToolBubble(sid, data){
 
   const isCards = data.toolName==='Ask_Multiple_Choice'&&data.toolData?.options;
   const actHtml = toolActionsHtml(sid, data);
+  const report = gateReportHtml(data);
   const now = ts();
 
   const row = document.createElement('div');
   row.className='msg from-agent tool-call';
   row.id='tb-'+data.requestId;
   row.innerHTML=\`
-    <div class="msg-meta"><span>🔧 \${esc(tn)}</span><span>\${now}</span></div>
+    <div class="msg-meta"><span>\${esc(icon+' '+tn)}</span><span>\${now}</span></div>
     <div class="tool-card" id="tc-\${data.requestId}">
       <div class="tool-card-header"><span class="tool-name-badge">\${esc(tn)}</span><span class="tool-card-ts">\${now}</span></div>
-      <div class="tool-card-body"><div class="tool-msg">\${md(msg)}</div></div>
+      <div class="tool-card-body">
+        \${msg?'<div class="tool-msg">'+md(msg)+'</div>':''}
+        \${report}
+      </div>
       <div class="tool-actions\${isCards?' cards':''}" id="ta-\${data.requestId}">\${actHtml}</div>
     </div>\`;
 
@@ -608,6 +678,16 @@ function chipClick(sid, reqId, text, chipEl, bubble){
   chipEl.classList.add('selected');
   document.getElementById('tc-'+reqId)?.classList.add('responded');
   clearTimer(sid);
+
+  // Editable chips (ending with ': ') go into the textarea for the user to complete.
+  if(text.trimEnd().endsWith(':')){
+    const ta=document.querySelector('.composer-input[data-session="'+sid+'"]');
+    const btn=document.querySelector('.send-btn[data-session="'+sid+'"]');
+    if(ta){ta.value=text;ta.disabled=false;ta.focus();}
+    if(btn) btn.disabled=false;
+    return;
+  }
+
   doSend(sid, text);
 }
 
@@ -670,17 +750,22 @@ function handleStateChange(data){
   if(!sid) return;
   if(data.state==='waiting_for_response'){
     pending[sid]=data.requestId;
-    renderToolBubble(sid,data);
+    const bubble=renderToolBubble(sid,data);
     setSessionEnabled(sid,true);
     fillQReplies(sid);
     setDot(sid,'waiting');
     setChatStatus(sid,'Waiting for your response…','waiting');
     notifyTab(sid);
+    if(bubble){
+      const def=getDefaultAction(data);
+      if(def) startTimer(sid,120,def.text,def.label,bubble,data.requestId);
+    }
   }else if(data.state==='completed'){
     delete pending[sid];
     setSessionEnabled(sid,false);
     clearTimer(sid);
-    document.getElementById('chips-'+sid)&&(document.getElementById('chips-'+sid).innerHTML='');
+    const chips=document.getElementById('chips-'+sid);
+    if(chips) chips.innerHTML='';
     setDot(sid,'idle');
     setChatStatus(sid,'Agent working…');
   }
@@ -702,6 +787,58 @@ function clearTimer(sid){
   }
 }
 
+function getDefaultAction(data){
+  const tn=data.toolName, td=data.toolData||{};
+  if(tn==='Request_Approval') return {text:'✅ Approved. Proceed with the action.',label:'Approve'};
+  if(tn==='Gate_Close'||tn==='Gate_Checkpoint'||tn==='Gate_Start'){
+    const ns=td.next_suggestion;
+    return ns
+      ?{text:'Excellent. Please proceed with: '+ns,label:'Proceed'}
+      :{text:tn==='Gate_Close'?'Turn closed and report accepted.':'Proceeding with the next step.',label:tn==='Gate_Close'?'Accept':'Proceed'};
+  }
+  if(tn==='Ask_Oracle') return {text:'Proceed with the most likely solution.',label:'Try best'};
+  if(tn==='Ask_Multiple_Choice'&&td.options?.length){
+    const rec=td.options.find(o=>o.id===td.recommendation)||td.options[0];
+    return {text:'I select option '+rec.id+': '+rec.title,label:rec.title};
+  }
+  return null; // Gate_Blocked and unknowns: no auto-decision
+}
+
+function startTimer(sid, secs, actionText, label, bubble, reqId){
+  clearTimer(sid);
+  const card=bubble.querySelector('.tool-card');
+  if(!card) return;
+  const cdId='cd-'+sid;
+  const cdBarId='cd-bar-'+sid;
+  const cdTxtId='cd-txt-'+sid;
+  const cd=document.createElement('div');
+  cd.id=cdId;
+  cd.className='countdown';
+  cd.innerHTML=\`<div class="countdown-track"><div class="countdown-bar" id="\${esc(cdBarId)}" style="width:100%"></div></div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="countdown-label" id="\${esc(cdTxtId)}" style="flex:1">\${secs}s — auto: <strong>\${esc(label)}</strong></div>
+      <button onclick="clearTimer('\${esc(sid)}')" style="background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--muted);font-size:10px;padding:2px 8px;cursor:pointer;flex-shrink:0;font-family:inherit">✕ Cancel</button>
+    </div>\`;
+  card.appendChild(cd);
+  let rem=secs;
+  timers[sid]={
+    iv:setInterval(()=>{
+      rem--;
+      if(rem<=0){clearTimer(sid);return;}
+      const bar=document.getElementById(cdBarId);
+      const txt=document.getElementById(cdTxtId);
+      if(bar) bar.style.width=(rem/secs*100)+'%';
+      if(txt) txt.innerHTML=rem+'s — auto: <strong>'+esc(label)+'</strong>';
+    },1000),
+    to:setTimeout(()=>{
+      const chips=bubble.querySelectorAll('[data-r]');
+      const match=Array.from(chips).find(el=>el.dataset.r===actionText);
+      const target=match||chips[0];
+      if(target&&!target.disabled) chipClick(sid,reqId,actionText,target,bubble);
+    },secs*1000)
+  };
+}
+
 // ── Load history ──────────────────────────────────────────────────────────────
 async function loadSession(sid){
   try{
@@ -710,9 +847,14 @@ async function loadSession(sid){
     const c = document.getElementById('messages-'+sid);
     if(!c) return;
     c.innerHTML='';
-    (d.messages||[]).forEach(m=>addMsg(sid,m.sender,m.content,m.source,m.timestamp));
     const sr = await fetch('/sessions/'+sid+'/state');
     const st = await sr.json();
+    // Skip the pending request message from history — it will be rendered as an interactive
+    // tool bubble below, so rendering it as a plain message first would duplicate it.
+    const pendingId = st.latestPendingRequest?.requestId;
+    (d.messages||[]).forEach(m=>{
+      if(!pendingId||m.id!==pendingId) addMsg(sid,m.sender,m.content,m.source,m.timestamp);
+    });
     if(st.latestPendingRequest){
       const req=st.latestPendingRequest;
       handleStateChange({state:'waiting_for_response',sessionId:sid,requestId:req.requestId,toolName:req.toolName,toolData:req,message:req.message||req.question||req.summary||req.problem_description});

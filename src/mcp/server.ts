@@ -126,7 +126,7 @@ export class McpServer extends EventEmitter implements IMcpServer {
     const sessionId = message.params.sessionId;
     const availableTools = (sessionId ? this.sessionTools.get(sessionId) : null) || this.tools;
     
-    const hitlTools = ['Ask_Human_Expert', 'Ask_Oracle', 'Report_Completion', 'Request_Approval', 'Ask_Multiple_Choice'];
+    const hitlTools = ['Ask_Human_Expert', 'Ask_Oracle', 'Gate_Checkpoint', 'Gate_Close', 'Gate_Start', 'Gate_Blocked', 'Request_Approval', 'Ask_Multiple_Choice'];
     if (hitlTools.includes(name) && availableTools.has(name)) {
       return await this.handleHITLChatTool(message.id, args, sessionId, name);
     }
@@ -143,10 +143,14 @@ export class McpServer extends EventEmitter implements IMcpServer {
     const requestId = `${messageId}-${Date.now()}`;
     const activeToolName = toolName || 'Ask_Human_Expert';
     
-    let messageBody = params.message || params.question || params.summary || params.problem_description || params.impact || 'No message provided';
+    let messageBody = params.message || params.question || params.summary || params.problem_description || params.impact || params.plan_summary || 'No message provided';
     
-    if (activeToolName === 'Report_Completion' && params.next_suggestion) {
+    if (activeToolName === 'Gate_Close' && params.next_suggestion) {
       messageBody += `\n\n**Next Suggestion:** ${params.next_suggestion}`;
+    }
+    
+    if (activeToolName === 'Gate_Blocked' && params.blocker_details) {
+      messageBody = `**BLOCKED:** ${params.blocker_details.description}\n\n**Severity:** ${params.blocker_details.severity}\n\n**Needed Input:** ${params.blocker_details.needed_input}`;
     }
     
     if (activeToolName === 'Request_Approval') {
@@ -167,8 +171,8 @@ export class McpServer extends EventEmitter implements IMcpServer {
       };
       
       this.chatManager.addMessage(actualSessionId, aiMessage);
-      this.sendToSessionAndWeb(actualSessionId, 'chat_message', { sessionId: actualSessionId, message: { ...aiMessage, timestamp: aiMessage.timestamp.toISOString() } });
-      
+      // Tool messages are rendered by the request-state-change event as interactive bubbles.
+      // We do NOT broadcast a separate chat_message to avoid duplicate rendering.
       this.emit('request-state-change', { requestId, sessionId: actualSessionId, state: 'waiting_for_response', message: displayMessage, toolName: activeToolName, toolData: params, timestamp: new Date().toISOString() });
       
       this.chatManager.addPendingRequest(actualSessionId, requestId, { ...params, toolName: activeToolName });

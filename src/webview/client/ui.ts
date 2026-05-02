@@ -120,6 +120,16 @@ export class UIManager {
     this.setControlsEnabled(false);
   }
 
+  /** Send a message directly without going through the textarea (no visual flash). */
+  public sendMessageContent(content: string) {
+    if (!content.trim()) return;
+    this.network.postMessage('sendMessage', {
+      content: content.trim(),
+      requestId: this.state.currentPendingRequestId
+    });
+    this.setControlsEnabled(false);
+  }
+
   public setControlsEnabled(enabled: boolean) {
     const sendButton = document.getElementById('sendButton') as HTMLButtonElement;
     if (sendButton) sendButton.disabled = !enabled;

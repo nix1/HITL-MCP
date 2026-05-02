@@ -73,8 +73,15 @@ const boot = async () => {
   // Sync state (history + pending requests)
   const sessionState = await network.syncSessionState();
   if (sessionState && sessionState.messages) {
-    sessionState.messages.forEach((msg: any) => ui.addMessageToUI(msg));
-    
+    // If there is a pending request, its message is already in history but will be rendered
+    // as an interactive tool bubble below — skip it to avoid duplicates.
+    const pendingId = sessionState.pendingRequests?.[0]?.requestId;
+    sessionState.messages.forEach((msg: any) => {
+      if (!pendingId || msg.id !== pendingId) {
+        ui.addMessageToUI(msg);
+      }
+    });
+
     // If there is a pending request, trigger the tool UI
     if (sessionState.pendingRequests && sessionState.pendingRequests.length > 0) {
       const pending = sessionState.pendingRequests[0];

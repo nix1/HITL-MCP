@@ -210,39 +210,82 @@ body {
   cursor: not-allowed;
 }
 
-/* --- Multiple Choice Cards --- */
-.tool-badge {
+/* --- Gate Report Styles --- */
+.gate-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+.gate-state.gate-completed { background: rgba(78,201,176,0.12); color: var(--vscode-charts-green, #4ec9b0); border: 1px solid rgba(78,201,176,0.3); }
+.gate-state.gate-partial { background: rgba(220,180,0,0.12); color: var(--vscode-charts-orange, #d4ac0d); border: 1px solid rgba(220,180,0,0.3); }
+.gate-state.gate-blocked { background: rgba(248,81,73,0.12); color: var(--vscode-charts-red, #f85149); border: 1px solid rgba(248,81,73,0.3); }
+
+.gate-section { margin: 8px 0; }
+.gate-section-hdr {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  opacity: 0.6;
+  font-weight: 700;
+  margin-bottom: 5px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.gate-badge {
   background: var(--vscode-button-background);
   color: var(--vscode-button-foreground);
-  padding: 2px 6px;
-  border-radius: 4px;
-  display: inline-block;
-  margin-bottom: 8px;
+  border-radius: 8px;
+  padding: 1px 6px;
+  font-size: 9px;
+  font-weight: 700;
+  opacity: 1;
 }
-
-.tool-context-header {
-  font-size: 13px;
-  margin-bottom: 12px;
-  color: var(--vscode-foreground);
-  line-height: 1.5;
-  padding: 8px;
-  background: var(--vscode-editor-background);
+.gate-req-list { display: flex; flex-direction: column; gap: 3px; }
+.gate-req-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+.gate-req-row code {
+  font-size: 10.5px;
+  background: rgba(0,0,0,0.12);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+.gate-evidence {
+  font-size: 10px;
+  opacity: 0.55;
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
+.gate-blocker {
+  margin: 10px 0 4px;
+  padding: 10px 12px;
+  background: rgba(248,81,73,0.07);
+  border: 1px solid rgba(248,81,73,0.3);
   border-radius: 6px;
-  border: 1px solid var(--vscode-panel-border);
-  word-break: break-word;
 }
-
-.tool-context-header p {
-  margin: 0;
-  padding: 0;
+.gate-blocker-hdr {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--vscode-charts-red, #f85149);
+  margin-bottom: 5px;
 }
-
-.tool-context-header strong {
-  color: var(--vscode-symbolIcon-propertyForeground);
-}
+.gate-blocker-desc { font-size: 12px; margin-bottom: 5px; line-height: 1.4; }
+.gate-blocker-meta { font-size: 11px; margin-top: 4px; opacity: 0.9; }
 
 .multiple-choice-container {
   display: flex;
@@ -308,17 +351,17 @@ body {
 /* --- Countdown Timer (Autonomous Decision) --- */
 #countdownWrapper {
   margin-top: 12px;
-  padding: 10px;
-  background: rgba(0,0,0,0.15);
-  border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.05);
+  padding: 8px 10px;
+  background: rgba(0,0,0,0.12);
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.06);
 }
 
 .countdown-bar-container {
-  height: 4px;
+  height: 3px;
   background: rgba(255,255,255,0.1);
   border-radius: 2px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   overflow: hidden;
 }
 
@@ -329,15 +372,41 @@ body {
   transition: width 1s linear;
 }
 
+.countdown-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .countdown-text {
+  flex: 1;
   font-size: 11px;
   color: var(--vscode-foreground);
-  text-align: center;
-  opacity: 0.9;
+  opacity: 0.85;
 }
 
 .countdown-text strong {
   color: var(--vscode-button-background);
+  opacity: 1;
+}
+
+.cancel-timer-btn {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 4px;
+  color: var(--vscode-foreground);
+  font-size: 10px;
+  padding: 2px 7px;
+  cursor: pointer;
+  opacity: 0.65;
+  flex-shrink: 0;
+  font-family: inherit;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.cancel-timer-btn:hover {
+  opacity: 1;
+  background: rgba(255,255,255,0.08);
 }
 
 /* Policy Selector in Header */
@@ -472,8 +541,7 @@ textarea {
   50%, 100% { background-color: rgba(var(--vscode-foreground), 0.2); }
 }
 
-/* --- Tool Bubble (in-history tool call rendering) --- */
-
+/* --- Tool Bubble --- */
 .tool-bubble { max-width: 95%; }
 
 .tool-bubble .message-bubble {
@@ -482,11 +550,17 @@ textarea {
   border-left: 3px solid var(--vscode-button-background);
 }
 
+.tool-bubble .message-content {
+  margin-bottom: 8px;
+}
+
 .tool-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.06);
 }
 
 .tool-chips .chip {
