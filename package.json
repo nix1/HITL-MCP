@@ -185,7 +185,9 @@
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test",
-    "test:unit": "tsc -p . --outDir out && mocha \"out/test/chatManager.test.js\" \"out/test/mcpTools.test.js\" --ui tdd --timeout 5000"
+    "test:unit": "tsc -p . --outDir out && mocha \"out/test/chatManager.test.js\" \"out/test/mcpTools.test.js\" --ui tdd --timeout 5000",
+    "dev": "bash scripts/reinstall-dev.sh fast",
+    "reinstall": "bash scripts/reinstall-dev.sh full"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",

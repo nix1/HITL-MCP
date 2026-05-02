@@ -15,6 +15,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Debug the extension: press F5 in VS Code → launches Extension Development Host. **Dev host uses port 3738; production uses 3737.**
 - CI (`.github/workflows/ci.yml`) runs: `npm run compile`, `npm run compile-tests`, `npm run lint`, `npm run test:unit`. Match this locally before pushing.
 
+### Dev reinstall shortcuts
+
+The server (`dist/mcpStandalone.js`) is a separate process from the extension host. Changes to different layers need different update paths:
+
+| What changed | Command | What it does |
+|---|---|---|
+| `src/mcp/**` or `src/webview/client/**` | `npm run dev` | Fast webpack compile + kills the server; VS Code restarts it automatically |
+| `src/extension.ts`, `package.json`, webview provider | `npm run reinstall` | Full VSIX build + kills server + `code --install-extension`; then reload each VS Code window (`Ctrl+Shift+P → Developer: Reload Window`) |
+
+`scripts/reinstall-dev.sh` uses `POST /shutdown` (graceful) → PID file → `lsof` port kill, in that order.  
+Override port: `HITL_PORT=3738 npm run dev` (dev host uses 3738).
+
 ## Architecture
 
 This is a VS Code extension that exposes a **human-in-the-loop MCP server** to AI assistants (GitHub Copilot et al.). It is bundled as **three separate webpack outputs**, which is the most important fact for understanding the codebase:
