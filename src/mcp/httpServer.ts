@@ -173,18 +173,54 @@ export class McpHttpServer {
         message.params.sessionId = sessionId;
       }
       
-      if (message.method === 'tools/call' && message.params?.name === 'HITL_Chat') {
+      const HITL_TOOLS = new Set([
+        'Ask_Human_Expert', 'Ask_Oracle', 'Gate_Checkpoint', 'Gate_Close',
+        'Gate_Start', 'Gate_Blocked', 'Request_Approval', 'Ask_Multiple_Choice',
+        'HITL_Chat',
+      ]);
+      if (message.method === 'tools/call' && HITL_TOOLS.has(message.params?.name)) {
         res.statusCode = 200;
         res.setHeader('Content-Type', 'application/json');
         res.setHeader('Transfer-Encoding', 'chunked');
+        // Whitespace before the JSON body is ignored by JSON parsers, so we
+        // can drip bytes to keep the socket warm across MCP-client and proxy
+        // idle timeouts (commonly 60s) without corrupting the response.
         const keepaliveInterval = setInterval(() => {
-          if (!res.destroyed) res.write(' ');
-          else clearInterval(keepaliveInterval);
-        }, 4 * 60 * 1000);
-        
-        const response = await this.server.handleMessage(message);
-        clearInterval(keepaliveInterval);
-        res.end(JSON.stringify(response));
+          if (res.destroyed) { clearInterval(keepaliveInterval); return; }
+          try { res.write(' '); } catch { clearInterval(keepaliveInterval); }
+        }, 25 * 1000);
+
+        // MCP progress notifications: if the client opted in by sending
+        // `_meta.progressToken`, emit `notifications/progress` on the per-session
+        // GET-SSE channel so the client can show a "still waiting" indicator.
+        const progressToken = message.params?._meta?.progressToken;
+        let progressInterval: NodeJS.Timeout | undefined;
+        if (progressToken !== undefined && sessionId) {
+          let progressCount = 0;
+          progressInterval = setInterval(() => {
+            const conn = this.sseClients.get(sessionId);
+            if (!conn || conn.destroyed) return;
+            progressCount += 1;
+            const notif = {
+              jsonrpc: '2.0',
+              method: 'notifications/progress',
+              params: {
+                progressToken,
+                progress: progressCount,
+                message: 'Waiting for human response...',
+              },
+            };
+            try { conn.write(`data: ${JSON.stringify(notif)}\n\n`); } catch { /* ignore */ }
+          }, 20 * 1000);
+        }
+
+        try {
+          const response = await this.server.handleMessage(message);
+          res.end(JSON.stringify(response));
+        } finally {
+          clearInterval(keepaliveInterval);
+          if (progressInterval) clearInterval(progressInterval);
+        }
         return;
       }
       

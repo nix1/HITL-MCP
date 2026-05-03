@@ -21,7 +21,6 @@ Thumbs.db
 
 # Logs
 *.log
-response-debug.txt
 
 # Test files
 test-*.js
@@ -31,7 +30,5 @@ test-*.js
 *.mp4
 *.avi
 
-# Development files
-create-replacement.js
-replacement-string.txt
-Sample.json
+# Local notes / scratch
+notes/
